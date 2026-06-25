@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#2f6b5f" />
+    <title>Money 猫砂记录</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Money & Lucky</p>
+          <h1>猫砂记录</h1>
+        </div>
+        <button class="icon-button" id="installHintButton" type="button" aria-label="安装提示">⌂</button>
+      </header>
+
+      <main>
+        <section class="view active" id="view-today" aria-labelledby="tab-today">
+          <div class="summary-grid" id="todaySummary"></div>
+          <div class="section-head">
+            <h2>今日记录</h2>
+            <button class="secondary-button" type="button" data-open-tab="add">新增</button>
+          </div>
+          <div id="todayAlerts"></div>
+          <div class="record-list" id="todayRecords"></div>
+        </section>
+
+        <section class="view" id="view-add" aria-labelledby="tab-add">
+          <form id="recordForm" class="record-form">
+            <input type="hidden" id="editingId" />
+            <div class="form-top">
+              <label>
+                日期
+                <input id="recordDate" type="date" required />
+              </label>
+              <label>
+                时间
+                <input id="recordTime" type="time" required />
+              </label>
+            </div>
+
+            <div class="litter-layout">
+              <section class="litter-panel" data-box="left">
+                <div class="panel-title">
+                  <h2>左盆</h2>
+                  <button class="small-button" type="button" data-add-urine="left">+ 尿块</button>
+                </div>
+                <div class="urine-list" id="leftUrines"></div>
+                <div class="stool-row">
+                  <label>
+                    屎块数
+                    <input id="leftStoolCount" type="number" inputmode="numeric" min="0" step="1" value="0" />
+                  </label>
+                  <label>
+                    屎便备注
+                    <input id="leftStoolNote" type="text" placeholder="软便 / 长条 / 大条" />
+                  </label>
+                </div>
+              </section>
+
+              <section class="litter-panel" data-box="right">
+                <div class="panel-title">
+                  <h2>右盆</h2>
+                  <button class="small-button" type="button" data-add-urine="right">+ 尿块</button>
+                </div>
+                <div class="urine-list" id="rightUrines"></div>
+                <div class="stool-row">
+                  <label>
+                    屎块数
+                    <input id="rightStoolCount" type="number" inputmode="numeric" min="0" step="1" value="0" />
+                  </label>
+                  <label>
+                    屎便备注
+                    <input id="rightStoolNote" type="text" placeholder="软便 / 长条 / 大条" />
+                  </label>
+                </div>
+              </section>
+            </div>
+
+            <label>
+              备注
+              <textarea id="recordNote" rows="3" placeholder="补水、呕吐、亲眼看到 Money、疑似 Lucky、频繁进盆等"></textarea>
+            </label>
+
+            <div class="live-total" id="liveTotal"></div>
+            <div class="form-actions">
+              <button class="secondary-button" id="resetFormButton" type="button">清空</button>
+              <button class="primary-button" type="submit">保存记录</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="view" id="view-history" aria-labelledby="tab-history">
+          <div class="section-head">
+            <h2>历史记录</h2>
+            <input id="historyDate" type="date" />
+          </div>
+          <div class="record-list" id="historyRecords"></div>
+        </section>
+
+        <section class="view" id="view-trends" aria-labelledby="tab-trends">
+          <div class="section-head">
+            <h2>趋势分析</h2>
+            <select id="trendMode">
+              <option value="all">全部尿块</option>
+              <option value="money">排除明显 Lucky</option>
+            </select>
+          </div>
+          <div id="trendAlerts"></div>
+          <div class="trend-chart" id="trendChart"></div>
+          <div class="trend-table" id="trendTable"></div>
+        </section>
+
+        <section class="view" id="view-export" aria-labelledby="tab-export">
+          <h2>导出数据</h2>
+          <p class="muted">当前原型先保存在这台手机/电脑的浏览器里。之后接 Supabase 后，两台 iPhone 会共享同一份数据。</p>
+          <div class="export-actions">
+            <button class="primary-button" id="downloadCsvButton" type="button">下载 CSV</button>
+            <button class="secondary-button" id="downloadJsonButton" type="button">下载 JSON</button>
+          </div>
+          <details>
+            <summary>导入 JSON 备份</summary>
+            <textarea id="importJson" rows="5" placeholder="粘贴之前导出的 JSON"></textarea>
+            <button class="secondary-button" id="importJsonButton" type="button">导入</button>
+          </details>
+        </section>
+      </main>
+
+      <nav class="tabbar" aria-label="主导航">
+        <button class="tab active" id="tab-today" type="button" data-tab="today">今日</button>
+        <button class="tab" id="tab-add" type="button" data-tab="add">新增</button>
+        <button class="tab" id="tab-history" type="button" data-tab="history">历史</button>
+        <button class="tab" id="tab-trends" type="button" data-tab="trends">趋势</button>
+        <button class="tab" id="tab-export" type="button" data-tab="export">导出</button>
+      </nav>
+    </div>
+    <template id="urineTemplate">
+      <div class="urine-item">
+        <div class="dimension-row">
+          <label>长<input data-field="length" type="number" inputmode="decimal" min="0" step="0.1" placeholder="cm" /></label>
+          <label>宽<input data-field="width" type="number" inputmode="decimal" min="0" step="0.1" placeholder="cm" /></label>
+          <label>高<input data-field="height" type="number" inputmode="decimal" min="0" step="0.1" placeholder="cm" /></label>
+        </div>
+        <div class="urine-meta">
+          <select data-field="owner">
+            <option value="unknown">未知</option>
+            <option value="suspected_lucky">疑似 Lucky</option>
+            <option value="money">确认 Money</option>
+            <option value="lucky">确认 Lucky</option>
+            <option value="exclude_money">排除 Money 分析</option>
+          </select>
+          <span class="volume-label">0 cm³</span>
+          <button class="icon-button remove-urine" type="button" aria-label="删除尿块">×</button>
+        </div>
+      </div>
+    </template>
+    <script src="app.js"></script>
+  </body>
+</html>
