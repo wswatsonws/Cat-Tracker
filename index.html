@@ -7,6 +7,7 @@
     <title>Money 猫砂记录</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -18,7 +19,52 @@
         <button class="icon-button" id="installHintButton" type="button" aria-label="安装提示">⌂</button>
       </header>
 
-      <main>
+      <section class="auth-panel" id="authPanel">
+        <h2>登录</h2>
+        <p class="muted">登录后记录会保存到 Supabase，你和对象加入同一个家庭空间后就能共享。</p>
+        <div class="form-top">
+          <label>
+            邮箱
+            <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" />
+          </label>
+          <label>
+            密码
+            <input id="authPassword" type="password" autocomplete="current-password" placeholder="至少 6 位" />
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="secondary-button" id="signUpButton" type="button">注册</button>
+          <button class="primary-button" id="signInButton" type="button">登录</button>
+        </div>
+        <p class="muted" id="authMessage"></p>
+      </section>
+
+      <section class="auth-panel hidden" id="familyPanel">
+        <h2>家庭空间</h2>
+        <p class="muted">第一位登录的人创建家庭空间；另一位登录后粘贴家庭 ID 加入。</p>
+        <div class="form-actions">
+          <button class="primary-button" id="createFamilyButton" type="button">创建家庭空间</button>
+        </div>
+        <label>
+          加入已有家庭 ID
+          <input id="joinFamilyId" type="text" placeholder="粘贴对方页面里显示的家庭 ID" />
+        </label>
+        <div class="form-actions">
+          <button class="secondary-button" id="joinFamilyButton" type="button">加入家庭</button>
+          <button class="secondary-button" id="signOutNoFamilyButton" type="button">退出登录</button>
+        </div>
+        <p class="muted" id="familyMessage"></p>
+      </section>
+
+      <main id="appMain" class="hidden">
+        <section class="cloud-status">
+          <div>
+            <strong id="userEmail">未登录</strong>
+            <span id="syncStatus">云端同步已启用</span>
+          </div>
+          <button class="secondary-button" id="signOutButton" type="button">退出</button>
+        </section>
+
         <section class="view active" id="view-today" aria-labelledby="tab-today">
           <div class="summary-grid" id="todaySummary"></div>
           <div class="section-head">
@@ -116,11 +162,17 @@
         </section>
 
         <section class="view" id="view-export" aria-labelledby="tab-export">
-          <h2>导出数据</h2>
-          <p class="muted">当前原型先保存在这台手机/电脑的浏览器里。之后接 Supabase 后，两台 iPhone 会共享同一份数据。</p>
+          <h2>设置与导出</h2>
+          <div class="settings-block">
+            <span class="muted">家庭 ID</span>
+            <strong id="familyIdLabel"></strong>
+            <button class="secondary-button" id="copyFamilyIdButton" type="button">复制家庭 ID</button>
+          </div>
+          <p class="muted">CSV 和 JSON 会从当前云端记录导出。JSON 导入会把备份写入当前家庭空间。</p>
           <div class="export-actions">
             <button class="primary-button" id="downloadCsvButton" type="button">下载 CSV</button>
             <button class="secondary-button" id="downloadJsonButton" type="button">下载 JSON</button>
+            <button class="secondary-button" id="importLocalButton" type="button">导入本机旧记录</button>
           </div>
           <details>
             <summary>导入 JSON 备份</summary>
@@ -135,7 +187,7 @@
         <button class="tab" id="tab-add" type="button" data-tab="add">新增</button>
         <button class="tab" id="tab-history" type="button" data-tab="history">历史</button>
         <button class="tab" id="tab-trends" type="button" data-tab="trends">趋势</button>
-        <button class="tab" id="tab-export" type="button" data-tab="export">导出</button>
+        <button class="tab" id="tab-export" type="button" data-tab="export">设置</button>
       </nav>
     </div>
     <template id="urineTemplate">

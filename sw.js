@@ -1,4 +1,4 @@
-const CACHE_NAME = "money-cat-tracker-v1";
+const CACHE_NAME = "money-cat-tracker-v2";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => {

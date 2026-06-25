@@ -1,4 +1,6 @@
 const STORAGE_KEY = "money-cat-tracker-records-v1";
+const SUPABASE_URL = "https://kciebvyryqblfmbamasp.supabase.co";
+const SUPABASE_KEY = "sb_publishable_XUQPY1_R98Ce11GTeFlaMA_3Ir5pXf3";
 const OWNER_LABELS = {
   unknown: "未知",
   suspected_lucky: "疑似 Lucky",
@@ -7,10 +9,25 @@ const OWNER_LABELS = {
   exclude_money: "排除 Money",
 };
 
-let records = loadRecords();
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let records = [];
+let currentUser = null;
+let currentFamily = null;
 
 const els = {
+  authPanel: document.querySelector("#authPanel"),
+  familyPanel: document.querySelector("#familyPanel"),
+  appMain: document.querySelector("#appMain"),
+  authEmail: document.querySelector("#authEmail"),
+  authPassword: document.querySelector("#authPassword"),
+  authMessage: document.querySelector("#authMessage"),
+  familyMessage: document.querySelector("#familyMessage"),
+  joinFamilyId: document.querySelector("#joinFamilyId"),
+  userEmail: document.querySelector("#userEmail"),
+  syncStatus: document.querySelector("#syncStatus"),
+  familyIdLabel: document.querySelector("#familyIdLabel"),
   tabs: document.querySelectorAll(".tab"),
+  tabbar: document.querySelector(".tabbar"),
   views: document.querySelectorAll(".view"),
   form: document.querySelector("#recordForm"),
   editingId: document.querySelector("#editingId"),
@@ -38,13 +55,30 @@ const els = {
 
 init();
 
-function init() {
+async function init() {
   const now = new Date();
   els.date.value = toDateValue(now);
   els.time.value = toTimeValue(now);
   els.historyDate.value = toDateValue(now);
   addUrine("left");
   addUrine("right");
+
+  bindEvents();
+  await restoreSession();
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  }
+}
+
+function bindEvents() {
+  document.querySelector("#signUpButton").addEventListener("click", signUp);
+  document.querySelector("#signInButton").addEventListener("click", signIn);
+  document.querySelector("#signOutButton").addEventListener("click", signOut);
+  document.querySelector("#signOutNoFamilyButton").addEventListener("click", signOut);
+  document.querySelector("#createFamilyButton").addEventListener("click", createFamily);
+  document.querySelector("#joinFamilyButton").addEventListener("click", joinFamily);
+  document.querySelector("#copyFamilyIdButton").addEventListener("click", copyFamilyId);
 
   document.querySelectorAll("[data-open-tab]").forEach((button) => {
     button.addEventListener("click", () => openTab(button.dataset.openTab));
@@ -63,16 +97,155 @@ function init() {
   document.querySelector("#downloadCsvButton").addEventListener("click", downloadCsv);
   document.querySelector("#downloadJsonButton").addEventListener("click", downloadJson);
   document.querySelector("#importJsonButton").addEventListener("click", importJson);
+  document.querySelector("#importLocalButton").addEventListener("click", importLocalRecords);
   document.querySelector("#installHintButton").addEventListener("click", () => {
     alert("在 iPhone Safari 中打开后，点分享按钮，再选择“添加到主屏幕”。");
   });
+}
 
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
+async function restoreSession() {
+  setStatus("正在检查登录状态...");
+  const { data } = await db.auth.getSession();
+  currentUser = data.session?.user || null;
+  if (!currentUser) {
+    showAuth();
+    return;
   }
+  await afterLogin();
+}
 
+async function signUp() {
+  const email = els.authEmail.value.trim();
+  const password = els.authPassword.value;
+  if (!email || !password) return setAuthMessage("请输入邮箱和密码。");
+  setAuthMessage("正在注册...");
+  const { error } = await db.auth.signUp({ email, password });
+  if (error) return setAuthMessage(error.message);
+  setAuthMessage("注册完成。如果 Supabase 要求验证邮箱，请先去邮箱点确认链接，然后再登录。");
+}
+
+async function signIn() {
+  const email = els.authEmail.value.trim();
+  const password = els.authPassword.value;
+  if (!email || !password) return setAuthMessage("请输入邮箱和密码。");
+  setAuthMessage("正在登录...");
+  const { data, error } = await db.auth.signInWithPassword({ email, password });
+  if (error) return setAuthMessage(error.message);
+  currentUser = data.user;
+  await afterLogin();
+}
+
+async function signOut() {
+  await db.auth.signOut();
+  currentUser = null;
+  currentFamily = null;
+  records = [];
+  showAuth();
+}
+
+async function afterLogin() {
+  els.userEmail.textContent = currentUser.email || "已登录";
+  const family = await getMyFamily();
+  if (!family) {
+    showFamilySetup();
+    return;
+  }
+  currentFamily = family;
+  await loadRecords();
+  showApp();
+}
+
+async function getMyFamily() {
+  const { data, error } = await db
+    .from("family_members")
+    .select("family_id, families(id, name)")
+    .eq("user_id", currentUser.id)
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    setFamilyMessage(error.message);
+    return null;
+  }
+  return data?.families || null;
+}
+
+async function createFamily() {
+  setFamilyMessage("正在创建家庭空间...");
+  const family = {
+    id: crypto.randomUUID(),
+    name: "Money & Lucky",
+    owner_id: currentUser.id,
+  };
+  const { error: familyError } = await db
+    .from("families")
+    .insert(family);
+  if (familyError) return setFamilyMessage(familyError.message);
+
+  const { error: memberError } = await db
+    .from("family_members")
+    .insert({ family_id: family.id, user_id: currentUser.id, role: "owner" });
+  if (memberError) return setFamilyMessage(memberError.message);
+
+  currentFamily = family;
+  await loadRecords();
+  showApp();
+}
+
+async function joinFamily() {
+  const familyId = els.joinFamilyId.value.trim();
+  if (!familyId) return setFamilyMessage("请输入家庭 ID。");
+  setFamilyMessage("正在加入家庭空间...");
+  const { error } = await db
+    .from("family_members")
+    .insert({ family_id: familyId, user_id: currentUser.id, role: "member" });
+  if (error) return setFamilyMessage(error.message);
+  currentFamily = { id: familyId, name: "Money & Lucky" };
+  await loadRecords();
+  showApp();
+}
+
+async function loadRecords() {
+  setStatus("正在从云端读取...");
+  const { data, error } = await db
+    .from("litter_records")
+    .select("*")
+    .eq("family_id", currentFamily.id)
+    .order("record_date", { ascending: false })
+    .order("record_time", { ascending: false });
+  if (error) {
+    setStatus(error.message);
+    records = [];
+    renderAll();
+    return;
+  }
+  records = data.map(fromDbRecord);
+  setStatus(`云端同步已启用，共 ${records.length} 条记录`);
   renderAll();
-  updateLiveTotal();
+}
+
+function showAuth() {
+  els.authPanel.classList.remove("hidden");
+  els.familyPanel.classList.add("hidden");
+  els.appMain.classList.add("hidden");
+  els.tabbar.classList.add("hidden");
+  setAuthMessage("");
+}
+
+function showFamilySetup() {
+  els.authPanel.classList.add("hidden");
+  els.familyPanel.classList.remove("hidden");
+  els.appMain.classList.add("hidden");
+  els.tabbar.classList.add("hidden");
+  setFamilyMessage("");
+}
+
+function showApp() {
+  els.authPanel.classList.add("hidden");
+  els.familyPanel.classList.add("hidden");
+  els.appMain.classList.remove("hidden");
+  els.tabbar.classList.remove("hidden");
+  els.familyIdLabel.textContent = currentFamily.id;
+  renderAll();
 }
 
 function openTab(tabName) {
@@ -119,7 +292,7 @@ function readUrines(box) {
     .filter((urine) => urine.length || urine.width || urine.height);
 }
 
-function saveForm(event) {
+async function saveForm(event) {
   event.preventDefault();
   const id = els.editingId.value || crypto.randomUUID();
   const existing = records.find((record) => record.id === id);
@@ -144,10 +317,23 @@ function saveForm(event) {
     updatedAt: new Date().toISOString(),
   };
 
-  records = existing ? records.map((item) => (item.id === id ? record : item)) : [record, ...records];
-  saveRecords();
+  setStatus("正在保存...");
+  const { data, error } = await db
+    .from("litter_records")
+    .upsert(toDbRecord(record), { onConflict: "id" })
+    .select()
+    .single();
+  if (error) {
+    setStatus(error.message);
+    alert(error.message);
+    return;
+  }
+
+  const saved = fromDbRecord(data);
+  records = existing ? records.map((item) => (item.id === id ? saved : item)) : [saved, ...records];
   resetForm();
   renderAll();
+  setStatus("已保存到云端");
   openTab("today");
 }
 
@@ -183,11 +369,18 @@ function editRecord(id) {
   openTab("add");
 }
 
-function deleteRecord(id) {
+async function deleteRecord(id) {
   if (!confirm("删除这条记录？")) return;
+  setStatus("正在删除...");
+  const { error } = await db.from("litter_records").delete().eq("id", id);
+  if (error) {
+    setStatus(error.message);
+    alert(error.message);
+    return;
+  }
   records = records.filter((item) => item.id !== id);
-  saveRecords();
   renderAll();
+  setStatus("已删除");
 }
 
 function updateLiveTotal() {
@@ -242,15 +435,15 @@ function renderTrends() {
   els.trendAlerts.innerHTML = renderAlerts(toDateValue(new Date()), "trend");
   els.trendChart.innerHTML = daily.length
     ? daily.slice(-14).map((day) => {
-        const width = Math.max(4, (day.volume / maxVolume) * 100);
-        return `<div class="bar-row"><span>${shortDate(day.date)}</span><div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div><strong>${formatNumber(day.volume)}</strong></div>`;
-      }).join("")
+      const width = Math.max(4, (day.volume / maxVolume) * 100);
+      return `<div class="bar-row"><span>${shortDate(day.date)}</span><div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div><strong>${formatNumber(day.volume)}</strong></div>`;
+    }).join("")
     : emptyState("暂无趋势数据");
   els.trendTable.innerHTML = daily.length
     ? [
-        `<div class="trend-table-row"><strong>日期</strong><strong>尿块</strong><strong>体积</strong><strong>屎块</strong></div>`,
-        ...daily.slice(-14).reverse().map((day) => `<div class="trend-table-row"><span>${day.date}</span><span>${day.urineCount}</span><span>${formatNumber(day.volume)} cm³</span><span>${day.stoolCount}</span></div>`),
-      ].join("")
+      `<div class="trend-table-row"><strong>日期</strong><strong>尿块</strong><strong>体积</strong><strong>屎块</strong></div>`,
+      ...daily.slice(-14).reverse().map((day) => `<div class="trend-table-row"><span>${day.date}</span><span>${day.urineCount}</span><span>${formatNumber(day.volume)} cm³</span><span>${day.stoolCount}</span></div>`),
+    ].join("")
     : "";
 }
 
@@ -367,6 +560,49 @@ function sortRecords(items) {
   return [...items].sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`));
 }
 
+function toDbRecord(record) {
+  const row = {
+    id: record.id,
+    family_id: currentFamily.id,
+    record_date: record.date,
+    record_time: record.time,
+    boxes: record.boxes,
+    note: record.note,
+    updated_by: currentUser.id,
+  };
+  if (!records.some((item) => item.id === record.id)) {
+    row.created_by = currentUser.id;
+  }
+  return row;
+}
+
+function fromDbRecord(row) {
+  return {
+    id: row.id,
+    date: row.record_date,
+    time: String(row.record_time || "").slice(0, 5),
+    boxes: normalizeBoxes(row.boxes),
+    note: row.note || "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function normalizeBoxes(boxes) {
+  return {
+    left: {
+      urines: boxes?.left?.urines || [],
+      stoolCount: boxes?.left?.stoolCount || 0,
+      stoolNote: boxes?.left?.stoolNote || "",
+    },
+    right: {
+      urines: boxes?.right?.urines || [],
+      stoolCount: boxes?.right?.stoolCount || 0,
+      stoolNote: boxes?.right?.stoolNote || "",
+    },
+  };
+}
+
 function volumeOf(urine) {
   return (Number(urine.length) || 0) * (Number(urine.width) || 0) * (Number(urine.height) || 0);
 }
@@ -402,19 +638,53 @@ function downloadJson() {
   downloadFile("money-cat-records.json", JSON.stringify(records, null, 2), "application/json");
 }
 
-function importJson() {
+async function importJson() {
   const raw = document.querySelector("#importJson").value.trim();
   if (!raw) return;
   try {
     const imported = JSON.parse(raw);
     if (!Array.isArray(imported)) throw new Error("not-array");
-    records = imported;
-    saveRecords();
-    renderAll();
+    await uploadImportedRecords(imported);
     alert("导入完成");
-  } catch {
-    alert("JSON 格式不正确");
+  } catch (error) {
+    alert(error.message === "not-array" ? "JSON 格式不正确" : error.message);
   }
+}
+
+async function importLocalRecords() {
+  const local = loadLocalRecords();
+  if (!local.length) {
+    alert("这台设备没有找到旧的本机记录。");
+    return;
+  }
+  if (!confirm(`找到 ${local.length} 条旧记录，导入到当前家庭空间？`)) return;
+  await uploadImportedRecords(local);
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+async function uploadImportedRecords(items) {
+  const rows = items.map((item) => toDbRecord({
+    ...item,
+    id: item.id || crypto.randomUUID(),
+    boxes: normalizeBoxes(item.boxes),
+    note: item.note || "",
+  }));
+  const { error } = await db.from("litter_records").upsert(rows, { onConflict: "id" });
+  if (error) throw new Error(error.message);
+  await loadRecords();
+}
+
+function loadLocalRecords() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+async function copyFamilyId() {
+  await navigator.clipboard.writeText(currentFamily.id);
+  setStatus("家庭 ID 已复制");
 }
 
 function downloadFile(filename, content, type) {
@@ -425,18 +695,6 @@ function downloadFile(filename, content, type) {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
-}
-
-function loadRecords() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function saveRecords() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
 }
 
 function numberValue(value) {
@@ -475,4 +733,16 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function setStatus(message) {
+  els.syncStatus.textContent = message;
+}
+
+function setAuthMessage(message) {
+  els.authMessage.textContent = message;
+}
+
+function setFamilyMessage(message) {
+  els.familyMessage.textContent = message;
 }

@@ -1,6 +1,6 @@
 # Money 猫砂记录原型
 
-这是一个面向 iPhone 使用的静态网页/PWA 原型，当前数据保存在浏览器本机 `localStorage`。
+这是一个面向 iPhone 使用的静态网页/PWA 原型，当前版本使用 Supabase 登录和云端保存。
 
 ## 当前功能
 
@@ -13,6 +13,16 @@
 - 温和提醒：基于近期个人记录对比，不做医学诊断
 - 导出：CSV 和 JSON
 - 导入：JSON 备份恢复
+- 家庭空间：两个人登录后加入同一个家庭 ID 共享记录
+
+## Supabase 初始化
+
+1. 打开 Supabase 项目。
+2. 进入 SQL Editor。
+3. 复制 `supabase-schema.sql` 的全部内容并执行。
+4. 打开网页后注册/登录。
+5. 第一位用户创建家庭空间，复制家庭 ID。
+6. 第二位用户登录后粘贴家庭 ID 加入。
 
 ## 本地预览
 
@@ -26,16 +36,10 @@ python3 -m http.server 4173
 http://127.0.0.1:4173/index.html
 ```
 
-## 后续接 Supabase
+## GitHub Pages
 
-建议下一阶段加入：
+当前部署地址：
 
-- Supabase Auth 邮箱登录
-- family_spaces 家庭空间
-- family_members 成员邀请
-- litter_records 主记录表
-- litter_box_entries 左盆/右盆详情表
-- urine_clumps 尿块表
-- CSV 后台导出
-
-这样可以让两台 iPhone 共享同一份数据，并保留未来上架 App Store 的账号体系基础。
+```text
+https://wswatsonws.github.io/Cat-Tracker/
+```
