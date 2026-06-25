@@ -31,6 +31,8 @@ const els = {
   authEmail: document.querySelector("#authEmail"),
   authPassword: document.querySelector("#authPassword"),
   authMessage: document.querySelector("#authMessage"),
+  newPassword: document.querySelector("#newPassword"),
+  passwordMessage: document.querySelector("#passwordMessage"),
   familyMessage: document.querySelector("#familyMessage"),
   joinFamilyId: document.querySelector("#joinFamilyId"),
   userEmail: document.querySelector("#userEmail"),
@@ -84,6 +86,8 @@ async function init() {
 function bindEvents() {
   document.querySelector("#signUpButton").addEventListener("click", signUp);
   document.querySelector("#signInButton").addEventListener("click", signIn);
+  document.querySelector("#forgotPasswordButton").addEventListener("click", resetPassword);
+  document.querySelector("#changePasswordButton").addEventListener("click", changePassword);
   document.querySelector("#signOutButton").addEventListener("click", signOut);
   document.querySelector("#signOutNoFamilyButton").addEventListener("click", signOut);
   document.querySelector("#createFamilyButton").addEventListener("click", createFamily);
@@ -165,6 +169,55 @@ async function signIn() {
     alert(`登录失败：${error.message}`);
   } finally {
     setAuthBusy(false);
+  }
+}
+
+async function resetPassword() {
+  const email = els.authEmail.value.trim();
+  if (!email) return setAuthMessage("请输入邮箱，然后再点忘记密码。");
+  setAuthBusy(true, "正在发送重置邮件...");
+  try {
+    const { error } = await db.auth.resetPasswordForEmail(email, {
+      redirectTo: "https://wswatsonws.github.io/Cat-Tracker/",
+    });
+    if (error) {
+      setAuthMessage(`发送失败：${error.message}`);
+      alert(`发送失败：${error.message}`);
+      return;
+    }
+    setAuthMessage("重置邮件已发送。请打开邮件里的链接，再设置新密码。");
+    alert("重置邮件已发送。请打开邮件里的链接，再设置新密码。");
+  } catch (error) {
+    setAuthMessage(`发送失败：${error.message}`);
+    alert(`发送失败：${error.message}`);
+  } finally {
+    setAuthBusy(false);
+  }
+}
+
+async function changePassword() {
+  const password = els.newPassword.value;
+  if (!password || password.length < 6) {
+    setPasswordMessage("新密码至少 6 位。");
+    return;
+  }
+  document.querySelector("#changePasswordButton").disabled = true;
+  setPasswordMessage("正在修改密码...");
+  try {
+    const { error } = await db.auth.updateUser({ password });
+    if (error) {
+      setPasswordMessage(`修改失败：${error.message}`);
+      alert(`修改失败：${error.message}`);
+      return;
+    }
+    els.newPassword.value = "";
+    setPasswordMessage("密码已修改。下次登录请使用新密码。");
+    alert("密码已修改。下次登录请使用新密码。");
+  } catch (error) {
+    setPasswordMessage(`修改失败：${error.message}`);
+    alert(`修改失败：${error.message}`);
+  } finally {
+    document.querySelector("#changePasswordButton").disabled = false;
   }
 }
 
@@ -780,8 +833,13 @@ function setFamilyMessage(message) {
   els.familyMessage.textContent = message;
 }
 
+function setPasswordMessage(message) {
+  els.passwordMessage.textContent = message;
+}
+
 function setAuthBusy(isBusy, message = "") {
   document.querySelector("#signUpButton").disabled = isBusy;
   document.querySelector("#signInButton").disabled = isBusy;
+  document.querySelector("#forgotPasswordButton").disabled = isBusy;
   if (message) setAuthMessage(message);
 }

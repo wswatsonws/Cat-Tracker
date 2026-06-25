@@ -286,7 +286,8 @@ textarea {
 .primary-button,
 .secondary-button,
 .small-button,
-.icon-button {
+.icon-button,
+.link-button {
   border: 0;
   border-radius: 8px;
   font-weight: 750;
@@ -322,6 +323,14 @@ textarea {
   border: 1px solid var(--line);
   color: var(--accent-strong);
   background: #fff;
+}
+
+.link-button {
+  width: fit-content;
+  padding: 2px 0;
+  color: var(--accent-strong);
+  background: transparent;
+  text-align: left;
 }
 
 .live-total {

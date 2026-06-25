@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#2f6b5f" />
     <title>Money 猫砂记录</title>
-    <link rel="manifest" href="manifest.webmanifest?v=4" />
-    <link rel="stylesheet" href="styles.css?v=4" />
+    <link rel="manifest" href="manifest.webmanifest?v=5" />
+    <link rel="stylesheet" href="styles.css?v=5" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   </head>
   <body>
@@ -36,6 +36,7 @@
           <button class="secondary-button" id="signUpButton" type="button">注册账号</button>
           <button class="primary-button" id="signInButton" type="button">登录</button>
         </div>
+        <button class="link-button" id="forgotPasswordButton" type="button">忘记密码</button>
         <p class="auth-message" id="authMessage"></p>
       </section>
 
@@ -168,6 +169,15 @@
             <strong id="familyIdLabel"></strong>
             <button class="secondary-button" id="copyFamilyIdButton" type="button">复制家庭 ID</button>
           </div>
+          <div class="settings-block">
+            <span class="muted">账号密码</span>
+            <label>
+              新密码
+              <input id="newPassword" type="password" autocomplete="new-password" placeholder="至少 6 位" />
+            </label>
+            <button class="secondary-button" id="changePasswordButton" type="button">修改密码</button>
+            <p class="auth-message" id="passwordMessage"></p>
+          </div>
           <p class="muted">CSV 和 JSON 会从当前云端记录导出。JSON 导入会把备份写入当前家庭空间。</p>
           <div class="export-actions">
             <button class="primary-button" id="downloadCsvButton" type="button">下载 CSV</button>
@@ -210,6 +220,6 @@
         </div>
       </div>
     </template>
-    <script src="app.js?v=4"></script>
+    <script src="app.js?v=5"></script>
   </body>
 </html>
