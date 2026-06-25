@@ -9,6 +9,16 @@ const OWNER_LABELS = {
   exclude_money: "排除 Money",
 };
 
+if (!window.supabase) {
+  document.addEventListener("DOMContentLoaded", () => {
+    const message = document.querySelector("#authMessage");
+    if (message) {
+      message.textContent = "Supabase 登录库没有加载成功，请刷新页面或检查网络。";
+    }
+  });
+  throw new Error("Supabase client library failed to load");
+}
+
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let records = [];
 let currentUser = null;
