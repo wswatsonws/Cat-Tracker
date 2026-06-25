@@ -360,6 +360,19 @@ textarea {
   font-size: 13px;
 }
 
+.auth-message {
+  min-height: 22px;
+  margin: 0;
+  color: var(--accent-strong);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
 .box-lines {
   display: grid;
   gap: 7px;

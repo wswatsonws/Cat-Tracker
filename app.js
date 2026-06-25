@@ -128,21 +128,44 @@ async function signUp() {
   const email = els.authEmail.value.trim();
   const password = els.authPassword.value;
   if (!email || !password) return setAuthMessage("请输入邮箱和密码。");
-  setAuthMessage("正在注册...");
-  const { error } = await db.auth.signUp({ email, password });
-  if (error) return setAuthMessage(error.message);
-  setAuthMessage("注册完成。如果 Supabase 要求验证邮箱，请先去邮箱点确认链接，然后再登录。");
+  setAuthBusy(true, "正在注册...");
+  try {
+    const { error } = await db.auth.signUp({ email, password });
+    if (error) {
+      setAuthMessage(`注册失败：${error.message}`);
+      alert(`注册失败：${error.message}`);
+      return;
+    }
+    setAuthMessage("注册完成。如果 Supabase 要求验证邮箱，请先去邮箱点确认链接，然后再登录。");
+    alert("注册请求已提交。如果收到确认邮件，请先点邮件里的确认链接，再回到这里登录。");
+  } catch (error) {
+    setAuthMessage(`注册失败：${error.message}`);
+    alert(`注册失败：${error.message}`);
+  } finally {
+    setAuthBusy(false);
+  }
 }
 
 async function signIn() {
   const email = els.authEmail.value.trim();
   const password = els.authPassword.value;
   if (!email || !password) return setAuthMessage("请输入邮箱和密码。");
-  setAuthMessage("正在登录...");
-  const { data, error } = await db.auth.signInWithPassword({ email, password });
-  if (error) return setAuthMessage(error.message);
-  currentUser = data.user;
-  await afterLogin();
+  setAuthBusy(true, "正在登录...");
+  try {
+    const { data, error } = await db.auth.signInWithPassword({ email, password });
+    if (error) {
+      setAuthMessage(`登录失败：${error.message}`);
+      alert(`登录失败：${error.message}`);
+      return;
+    }
+    currentUser = data.user;
+    await afterLogin();
+  } catch (error) {
+    setAuthMessage(`登录失败：${error.message}`);
+    alert(`登录失败：${error.message}`);
+  } finally {
+    setAuthBusy(false);
+  }
 }
 
 async function signOut() {
@@ -755,4 +778,10 @@ function setAuthMessage(message) {
 
 function setFamilyMessage(message) {
   els.familyMessage.textContent = message;
+}
+
+function setAuthBusy(isBusy, message = "") {
+  document.querySelector("#signUpButton").disabled = isBusy;
+  document.querySelector("#signInButton").disabled = isBusy;
+  if (message) setAuthMessage(message);
 }
