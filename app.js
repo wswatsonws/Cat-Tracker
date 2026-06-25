@@ -31,6 +31,9 @@ const els = {
   authEmail: document.querySelector("#authEmail"),
   authPassword: document.querySelector("#authPassword"),
   authMessage: document.querySelector("#authMessage"),
+  createFamilyName: document.querySelector("#createFamilyName"),
+  familyNameInput: document.querySelector("#familyNameInput"),
+  familyNameMessage: document.querySelector("#familyNameMessage"),
   newPassword: document.querySelector("#newPassword"),
   passwordMessage: document.querySelector("#passwordMessage"),
   familyMessage: document.querySelector("#familyMessage"),
@@ -91,6 +94,7 @@ function bindEvents() {
   document.querySelector("#signOutButton").addEventListener("click", signOut);
   document.querySelector("#signOutNoFamilyButton").addEventListener("click", signOut);
   document.querySelector("#createFamilyButton").addEventListener("click", createFamily);
+  document.querySelector("#saveFamilyNameButton").addEventListener("click", saveFamilyName);
   document.querySelector("#joinFamilyButton").addEventListener("click", joinFamily);
   document.querySelector("#copyFamilyIdButton").addEventListener("click", copyFamilyId);
 
@@ -257,9 +261,10 @@ async function getMyFamily() {
 
 async function createFamily() {
   setFamilyMessage("正在创建家庭空间...");
+  const familyName = els.createFamilyName.value.trim() || "Money & Lucky";
   const family = {
     id: crypto.randomUUID(),
-    name: "Money & Lucky",
+    name: familyName,
     owner_id: currentUser.id,
   };
   const { error: familyError } = await db
@@ -288,6 +293,31 @@ async function joinFamily() {
   currentFamily = { id: familyId, name: "Money & Lucky" };
   await loadRecords();
   showApp();
+}
+
+async function saveFamilyName() {
+  const name = els.familyNameInput.value.trim();
+  if (!name) {
+    setFamilyNameMessage("家庭名称不能为空。");
+    return;
+  }
+  document.querySelector("#saveFamilyNameButton").disabled = true;
+  setFamilyNameMessage("正在保存...");
+  const { data, error } = await db
+    .from("families")
+    .update({ name })
+    .eq("id", currentFamily.id)
+    .select()
+    .single();
+  document.querySelector("#saveFamilyNameButton").disabled = false;
+  if (error) {
+    setFamilyNameMessage(error.message);
+    alert(error.message);
+    return;
+  }
+  currentFamily = data;
+  els.familyNameInput.value = currentFamily.name || "";
+  setFamilyNameMessage("家庭名称已保存。");
 }
 
 async function loadRecords() {
@@ -331,6 +361,7 @@ function showApp() {
   els.appMain.classList.remove("hidden");
   els.tabbar.classList.remove("hidden");
   els.familyIdLabel.textContent = currentFamily.id;
+  els.familyNameInput.value = currentFamily.name || "";
   renderAll();
 }
 
@@ -835,6 +866,10 @@ function setFamilyMessage(message) {
 
 function setPasswordMessage(message) {
   els.passwordMessage.textContent = message;
+}
+
+function setFamilyNameMessage(message) {
+  els.familyNameMessage.textContent = message;
 }
 
 function setAuthBusy(isBusy, message = "") {

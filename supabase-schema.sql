@@ -64,6 +64,12 @@ create policy "families_insert_authenticated"
 on public.families for insert
 with check (owner_id = auth.uid());
 
+drop policy if exists "families_update_owner" on public.families;
+create policy "families_update_owner"
+on public.families for update
+using (owner_id = auth.uid())
+with check (owner_id = auth.uid());
+
 drop policy if exists "family_members_select_self" on public.family_members;
 create policy "family_members_select_self"
 on public.family_members for select
