@@ -109,6 +109,16 @@ function bindEvents() {
   els.tabs.forEach((tab) => tab.addEventListener("click", () => openTab(tab.dataset.tab)));
   els.form.addEventListener("input", updateLiveTotal);
   els.form.addEventListener("submit", saveForm);
+  els.date.addEventListener("blur", () => {
+    els.date.value = normalizeDateInput(els.date.value, els.date.value);
+  });
+  els.time.addEventListener("blur", () => {
+    els.time.value = normalizeTimeInput(els.time.value, els.time.value);
+  });
+  els.historyDate.addEventListener("blur", () => {
+    els.historyDate.value = normalizeDateInput(els.historyDate.value, "");
+    renderAll();
+  });
   document.querySelector("#resetFormButton").addEventListener("click", resetForm);
   els.historyDate.addEventListener("change", renderAll);
   els.trendMode.addEventListener("change", renderAll);
@@ -411,6 +421,12 @@ function readUrines(box) {
 
 async function saveForm(event) {
   event.preventDefault();
+  els.date.value = normalizeDateInput(els.date.value, toDateValue(new Date()));
+  els.time.value = normalizeTimeInput(els.time.value, toTimeValue(new Date()));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(els.date.value) || !/^\d{2}:\d{2}$/.test(els.time.value)) {
+    alert("日期或时间格式不正确。日期请填 YYYY-MM-DD，时间请填 HH:MM。");
+    return;
+  }
   const id = els.editingId.value || crypto.randomUUID();
   const existing = records.find((record) => record.id === id);
   const record = {
@@ -832,6 +848,69 @@ function toDateValue(date) {
 
 function toTimeValue(date) {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function normalizeDateInput(value, fallback) {
+  const raw = String(value || "").trim();
+  if (!raw) return fallback;
+  const parts = raw.match(/\d+/g) || [];
+  const currentYear = new Date().getFullYear();
+  let year;
+  let month;
+  let day;
+
+  if (parts.length >= 3) {
+    year = Number(parts[0].length === 2 ? `20${parts[0]}` : parts[0]);
+    month = Number(parts[1]);
+    day = Number(parts[2]);
+  } else if (parts.length === 2) {
+    year = currentYear;
+    month = Number(parts[0]);
+    day = Number(parts[1]);
+  } else if (parts.length === 1 && parts[0].length === 8) {
+    year = Number(parts[0].slice(0, 4));
+    month = Number(parts[0].slice(4, 6));
+    day = Number(parts[0].slice(6, 8));
+  } else if (parts.length === 1 && parts[0].length === 4) {
+    year = currentYear;
+    month = Number(parts[0].slice(0, 2));
+    day = Number(parts[0].slice(2, 4));
+  } else {
+    return fallback;
+  }
+
+  const parsed = new Date(year, month - 1, day);
+  if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) {
+    return fallback;
+  }
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function normalizeTimeInput(value, fallback) {
+  const raw = String(value || "").trim();
+  if (!raw) return fallback;
+  const parts = raw.match(/\d+/g) || [];
+  let hour;
+  let minute;
+
+  if (parts.length >= 2) {
+    hour = Number(parts[0]);
+    minute = Number(parts[1]);
+  } else if (parts.length === 1 && parts[0].length <= 2) {
+    hour = Number(parts[0]);
+    minute = 0;
+  } else if (parts.length === 1 && parts[0].length === 3) {
+    hour = Number(parts[0].slice(0, 1));
+    minute = Number(parts[0].slice(1, 3));
+  } else if (parts.length === 1 && parts[0].length === 4) {
+    hour = Number(parts[0].slice(0, 2));
+    minute = Number(parts[0].slice(2, 4));
+  } else {
+    return fallback;
+  }
+
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return fallback;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 function shortDate(date) {

@@ -20,6 +20,7 @@
 html {
   min-height: 100%;
   background: var(--bg);
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -218,11 +219,14 @@ input,
 select,
 textarea {
   width: 100%;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 11px 12px;
   color: var(--ink);
   background: #fff;
+  font-size: 16px;
+  line-height: 1.25;
   outline: none;
 }
 
