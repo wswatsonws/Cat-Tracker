@@ -831,7 +831,15 @@ function downloadFile(filename, content, type) {
 }
 
 function numberValue(value) {
-  return value === "" ? 0 : Number(value);
+  const normalized = String(value || "")
+    .trim()
+    .replaceAll("，", ".")
+    .replaceAll(",", ".")
+    .replaceAll("。", ".")
+    .replaceAll("．", ".");
+  if (!normalized) return 0;
+  const match = normalized.match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : 0;
 }
 
 function integerValue(value) {
