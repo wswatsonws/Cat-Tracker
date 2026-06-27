@@ -451,11 +451,10 @@ async function saveForm(event) {
   };
 
   setStatus("正在保存...");
-  const { data, error } = await db
-    .from("litter_records")
-    .upsert(toDbRecord(record), { onConflict: "id" })
-    .select()
-    .single();
+  const query = existing
+    ? db.from("litter_records").update(toDbRecord(record)).eq("id", id)
+    : db.from("litter_records").insert(toDbRecord(record));
+  const { data, error } = await query.select().single();
   if (error) {
     setStatus(error.message);
     alert(error.message);
