@@ -483,6 +483,34 @@ details textarea {
   backdrop-filter: blur(14px);
 }
 
+.save-feedback {
+  position: fixed;
+  right: 14px;
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  left: 14px;
+  z-index: 20;
+  width: min(520px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 13px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #fff;
+  background: var(--accent-strong);
+  box-shadow: 0 12px 30px rgba(24, 37, 33, 0.22);
+  font-size: 15px;
+  font-weight: 750;
+  text-align: center;
+}
+
+.save-feedback.error {
+  border-color: #c75a5a;
+  background: var(--danger);
+}
+
+.save-feedback.success {
+  background: var(--accent);
+}
+
 .tab {
   min-height: 46px;
   border: 0;

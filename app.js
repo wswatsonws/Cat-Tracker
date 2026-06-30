@@ -23,6 +23,8 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let records = [];
 let currentUser = null;
 let currentFamily = null;
+let isSaving = false;
+let saveFeedbackTimer = null;
 
 const els = {
   authPanel: document.querySelector("#authPanel"),
@@ -45,6 +47,8 @@ const els = {
   tabbar: document.querySelector(".tabbar"),
   views: document.querySelectorAll(".view"),
   form: document.querySelector("#recordForm"),
+  saveButton: document.querySelector("#saveRecordButton"),
+  saveFeedback: document.querySelector("#saveFeedback"),
   editingId: document.querySelector("#editingId"),
   date: document.querySelector("#recordDate"),
   time: document.querySelector("#recordTime"),
@@ -421,6 +425,7 @@ function readUrines(box) {
 
 async function saveForm(event) {
   event.preventDefault();
+  if (isSaving) return;
   els.date.value = normalizeDateInput(els.date.value, toDateValue(new Date()));
   els.time.value = normalizeTimeInput(els.time.value, toTimeValue(new Date()));
   if (!/^\d{4}-\d{2}-\d{2}$/.test(els.date.value) || !/^\d{2}:\d{2}$/.test(els.time.value)) {
@@ -428,6 +433,7 @@ async function saveForm(event) {
     return;
   }
   const id = els.editingId.value || crypto.randomUUID();
+  els.editingId.value = id;
   const existing = records.find((record) => record.id === id);
   const record = {
     id,
@@ -450,23 +456,64 @@ async function saveForm(event) {
     updatedAt: new Date().toISOString(),
   };
 
+  setSavingState(true);
   setStatus("正在保存...");
-  const query = existing
-    ? db.from("litter_records").update(toDbRecord(record)).eq("id", id)
-    : db.from("litter_records").insert(toDbRecord(record));
-  const { data, error } = await query.select().single();
-  if (error) {
-    setStatus(error.message);
-    alert(error.message);
-    return;
-  }
+  showSaveFeedback("正在保存，请稍候…", "saving");
+  try {
+    const query = existing
+      ? db.from("litter_records").update(toDbRecord(record)).eq("id", id)
+      : db.from("litter_records").upsert(toDbRecord(record), { onConflict: "id" });
+    const { data, error } = await withTimeout(query.select().single(), 20000);
+    if (error) throw error;
 
-  const saved = fromDbRecord(data);
-  records = existing ? records.map((item) => (item.id === id ? saved : item)) : [saved, ...records];
-  resetForm();
-  renderAll();
-  setStatus("已保存到云端");
-  openTab("today");
+    const saved = fromDbRecord(data);
+    records = existing ? records.map((item) => (item.id === id ? saved : item)) : [saved, ...records];
+    resetForm();
+    renderAll();
+    setStatus("已保存到云端");
+    showSaveFeedback("记录已保存", "success", 3000);
+    openTab("today");
+  } catch (error) {
+    const message = friendlySaveError(error);
+    setStatus(`保存失败：${message}`);
+    showSaveFeedback(`保存失败：${message}`, "error", 8000);
+  } finally {
+    setSavingState(false);
+  }
+}
+
+function setSavingState(saving) {
+  isSaving = saving;
+  els.saveButton.disabled = saving;
+  els.saveButton.textContent = saving ? "正在保存…" : "保存记录";
+}
+
+function showSaveFeedback(message, type, hideAfter = 0) {
+  clearTimeout(saveFeedbackTimer);
+  els.saveFeedback.textContent = message;
+  els.saveFeedback.className = `save-feedback ${type}`;
+  if (hideAfter) {
+    saveFeedbackTimer = setTimeout(() => els.saveFeedback.classList.add("hidden"), hideAfter);
+  }
+}
+
+function friendlySaveError(error) {
+  const message = String(error?.message || error || "未知错误");
+  if (message === "SAVE_TIMEOUT") {
+    return "保存等待超过 20 秒，请检查网络后再次点击保存。";
+  }
+  if (!navigator.onLine || /fetch|network|timeout|load failed/i.test(message)) {
+    return "网络连接不稳定，请检查网络后再次点击保存。";
+  }
+  return message;
+}
+
+function withTimeout(promise, timeoutMs) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error("SAVE_TIMEOUT")), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 function resetForm() {
