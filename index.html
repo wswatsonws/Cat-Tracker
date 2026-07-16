@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#2f6b5f" />
     <title>Money 猫砂记录</title>
-    <link rel="manifest" href="manifest.webmanifest?v=10" />
-    <link rel="stylesheet" href="styles.css?v=10" />
+    <link rel="manifest" href="manifest.webmanifest?v=11" />
+    <link rel="stylesheet" href="styles.css?v=11" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   </head>
   <body>
@@ -102,10 +102,14 @@
                 </div>
                 <div class="urine-list" id="leftUrines"></div>
                 <div class="stool-row">
-                  <label>
-                    屎块数
-                    <input id="leftStoolCount" type="number" inputmode="numeric" min="0" step="1" value="0" />
-                  </label>
+                  <div class="stool-count-field">
+                    <span>屎块数</span>
+                    <div class="count-stepper">
+                      <button type="button" data-stool-step="left" data-delta="-1" aria-label="左盆屎块减一">−</button>
+                      <input id="leftStoolCount" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="左盆屎块数" />
+                      <button type="button" data-stool-step="left" data-delta="1" aria-label="左盆屎块加一">+</button>
+                    </div>
+                  </div>
                   <label>
                     屎便备注
                     <input id="leftStoolNote" type="text" placeholder="软便 / 长条 / 大条" />
@@ -120,10 +124,14 @@
                 </div>
                 <div class="urine-list" id="rightUrines"></div>
                 <div class="stool-row">
-                  <label>
-                    屎块数
-                    <input id="rightStoolCount" type="number" inputmode="numeric" min="0" step="1" value="0" />
-                  </label>
+                  <div class="stool-count-field">
+                    <span>屎块数</span>
+                    <div class="count-stepper">
+                      <button type="button" data-stool-step="right" data-delta="-1" aria-label="右盆屎块减一">−</button>
+                      <input id="rightStoolCount" type="number" inputmode="numeric" min="0" step="1" value="0" aria-label="右盆屎块数" />
+                      <button type="button" data-stool-step="right" data-delta="1" aria-label="右盆屎块加一">+</button>
+                    </div>
+                  </div>
                   <label>
                     屎便备注
                     <input id="rightStoolNote" type="text" placeholder="软便 / 长条 / 大条" />
@@ -217,9 +225,10 @@
     <template id="urineTemplate">
       <div class="urine-item">
         <div class="dimension-row">
-          <label>长<input data-field="length" type="text" inputmode="decimal" autocomplete="off" placeholder="cm" /></label>
-          <label>宽<input data-field="width" type="text" inputmode="decimal" autocomplete="off" placeholder="cm" /></label>
-          <label>高<input data-field="height" type="text" inputmode="decimal" autocomplete="off" placeholder="cm" /></label>
+          <label>长<input data-field="length" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" placeholder="cm" /></label>
+          <label>宽<input data-field="width" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" placeholder="cm" /></label>
+          <label>高<input data-field="height" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="cm" /></label>
+          <button class="dimension-next-button" type="button" aria-label="切换到下一个尺寸" title="下一个尺寸">→</button>
         </div>
         <div class="urine-meta">
           <select data-field="owner">
@@ -234,6 +243,6 @@
         </div>
       </div>
     </template>
-    <script src="app.js?v=10"></script>
+    <script src="app.js?v=11"></script>
   </body>
 </html>

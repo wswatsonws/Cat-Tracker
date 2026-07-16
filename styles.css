@@ -207,6 +207,42 @@ details {
   gap: 10px;
 }
 
+.stool-count-field {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.count-stepper {
+  display: grid;
+  grid-template-columns: 46px minmax(52px, 1fr) 46px;
+  gap: 6px;
+}
+
+.count-stepper button {
+  min-width: 46px;
+  min-height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--accent-strong);
+  background: var(--surface-soft);
+  font-size: 24px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.count-stepper button:active {
+  background: #dcebe4;
+}
+
+.count-stepper input {
+  padding-right: 6px;
+  padding-left: 6px;
+  text-align: center;
+}
+
 label {
   display: grid;
   gap: 6px;
@@ -267,8 +303,26 @@ textarea {
 
 .dimension-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) 44px;
+  gap: 6px;
+}
+
+.dimension-next-button {
+  align-self: end;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #fff;
+  background: var(--accent);
+  font-size: 21px;
+  line-height: 1;
+}
+
+.dimension-row input {
+  padding-right: 7px;
+  padding-left: 7px;
+  text-align: center;
 }
 
 .urine-meta {

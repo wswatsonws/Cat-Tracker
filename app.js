@@ -107,7 +107,13 @@ function bindEvents() {
   });
 
   document.querySelectorAll("[data-add-urine]").forEach((button) => {
-    button.addEventListener("click", () => addUrine(button.dataset.addUrine));
+    button.addEventListener("click", () => addUrine(button.dataset.addUrine, {}, true));
+  });
+
+  document.querySelectorAll("[data-stool-step]").forEach((button) => {
+    button.addEventListener("click", () => {
+      adjustStoolCount(button.dataset.stoolStep, Number(button.dataset.delta));
+    });
   });
 
   els.tabs.forEach((tab) => tab.addEventListener("click", () => openTab(tab.dataset.tab)));
@@ -385,13 +391,35 @@ function openTab(tabName) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-function addUrine(box, urine = {}) {
+function addUrine(box, urine = {}, focusNew = false) {
   const node = els.urineTemplate.content.firstElementChild.cloneNode(true);
   node.dataset.box = box;
-  node.querySelector('[data-field="length"]').value = urine.length ?? "";
-  node.querySelector('[data-field="width"]').value = urine.width ?? "";
-  node.querySelector('[data-field="height"]').value = urine.height ?? "";
+  const dimensionInputs = [...node.querySelectorAll("[data-field=\"length\"], [data-field=\"width\"], [data-field=\"height\"]")];
+  dimensionInputs[0].value = urine.length ?? "";
+  dimensionInputs[1].value = urine.width ?? "";
+  dimensionInputs[2].value = urine.height ?? "";
   node.querySelector('[data-field="owner"]').value = urine.owner ?? "unknown";
+  let activeDimensionIndex = 0;
+  dimensionInputs.forEach((input, index) => {
+    input.addEventListener("focus", () => {
+      activeDimensionIndex = index;
+      input.select();
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      const nextInput = dimensionInputs[index + 1];
+      if (nextInput) nextInput.focus();
+      else input.blur();
+    });
+  });
+  node.querySelector(".dimension-next-button").addEventListener("click", () => {
+    if (activeDimensionIndex < dimensionInputs.length - 1) {
+      dimensionInputs[activeDimensionIndex + 1].focus();
+    } else {
+      dimensionInputs[activeDimensionIndex].blur();
+    }
+  });
   node.querySelector(".remove-urine").addEventListener("click", () => {
     node.remove();
     updateLiveTotal();
@@ -399,6 +427,13 @@ function addUrine(box, urine = {}) {
   node.addEventListener("input", () => updateUrineVolume(node));
   (box === "left" ? els.leftUrines : els.rightUrines).appendChild(node);
   updateUrineVolume(node);
+  if (focusNew) requestAnimationFrame(() => dimensionInputs[0].focus());
+}
+
+function adjustStoolCount(box, delta) {
+  const input = box === "left" ? els.leftStoolCount : els.rightStoolCount;
+  input.value = Math.max(0, integerValue(input.value) + delta);
+  updateLiveTotal();
 }
 
 function updateUrineVolume(node) {
