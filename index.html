@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#2f6b5f" />
     <title>Money 猫砂记录</title>
-    <link rel="manifest" href="manifest.webmanifest?v=11" />
-    <link rel="stylesheet" href="styles.css?v=11" />
+    <link rel="manifest" href="manifest.webmanifest?v=12" />
+    <link rel="stylesheet" href="styles.css?v=12" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   </head>
   <body>
@@ -101,6 +101,7 @@
                   <button class="small-button" type="button" data-add-urine="left">+ 尿块</button>
                 </div>
                 <div class="urine-list" id="leftUrines"></div>
+                <button class="small-button urine-add-bottom" type="button" data-add-urine="left">+ 继续添加尿块</button>
                 <div class="stool-row">
                   <div class="stool-count-field">
                     <span>屎块数</span>
@@ -123,6 +124,7 @@
                   <button class="small-button" type="button" data-add-urine="right">+ 尿块</button>
                 </div>
                 <div class="urine-list" id="rightUrines"></div>
+                <button class="small-button urine-add-bottom" type="button" data-add-urine="right">+ 继续添加尿块</button>
                 <div class="stool-row">
                   <div class="stool-count-field">
                     <span>屎块数</span>
@@ -228,7 +230,6 @@
           <label>长<input data-field="length" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" placeholder="cm" /></label>
           <label>宽<input data-field="width" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" placeholder="cm" /></label>
           <label>高<input data-field="height" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="cm" /></label>
-          <button class="dimension-next-button" type="button" aria-label="切换到下一个尺寸" title="下一个尺寸">→</button>
         </div>
         <div class="urine-meta">
           <select data-field="owner">
@@ -243,6 +244,6 @@
         </div>
       </div>
     </template>
-    <script src="app.js?v=11"></script>
+    <script src="app.js?v=12"></script>
   </body>
 </html>

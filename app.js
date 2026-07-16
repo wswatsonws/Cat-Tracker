@@ -399,12 +399,7 @@ function addUrine(box, urine = {}, focusNew = false) {
   dimensionInputs[1].value = urine.width ?? "";
   dimensionInputs[2].value = urine.height ?? "";
   node.querySelector('[data-field="owner"]').value = urine.owner ?? "unknown";
-  let activeDimensionIndex = 0;
   dimensionInputs.forEach((input, index) => {
-    input.addEventListener("focus", () => {
-      activeDimensionIndex = index;
-      input.select();
-    });
     input.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") return;
       event.preventDefault();
@@ -412,13 +407,6 @@ function addUrine(box, urine = {}, focusNew = false) {
       if (nextInput) nextInput.focus();
       else input.blur();
     });
-  });
-  node.querySelector(".dimension-next-button").addEventListener("click", () => {
-    if (activeDimensionIndex < dimensionInputs.length - 1) {
-      dimensionInputs[activeDimensionIndex + 1].focus();
-    } else {
-      dimensionInputs[activeDimensionIndex].blur();
-    }
   });
   node.querySelector(".remove-urine").addEventListener("click", () => {
     node.remove();
