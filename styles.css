@@ -475,6 +475,54 @@ details {
   margin-bottom: 12px;
 }
 
+.trend-controls {
+  display: flex;
+  min-width: 0;
+  gap: 8px;
+}
+
+.trend-controls select {
+  max-width: 170px;
+  padding: 9px 10px;
+}
+
+.line-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart-caption {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.chart-gridline {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.chart-axis-label {
+  fill: var(--muted);
+  font-size: 12px;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.chart-point {
+  fill: var(--accent);
+  stroke: #fff;
+  stroke-width: 2;
+}
+
 .bar-row {
   display: grid;
   grid-template-columns: 52px 1fr 72px;

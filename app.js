@@ -66,6 +66,7 @@ const els = {
   historyDate: document.querySelector("#historyDate"),
   historyRecords: document.querySelector("#historyRecords"),
   trendMode: document.querySelector("#trendMode"),
+  trendWindow: document.querySelector("#trendWindow"),
   trendAlerts: document.querySelector("#trendAlerts"),
   trendChart: document.querySelector("#trendChart"),
   trendTable: document.querySelector("#trendTable"),
@@ -132,6 +133,7 @@ function bindEvents() {
   document.querySelector("#resetFormButton").addEventListener("click", resetForm);
   els.historyDate.addEventListener("change", renderAll);
   els.trendMode.addEventListener("change", renderAll);
+  els.trendWindow.addEventListener("change", renderAll);
   document.querySelector("#downloadCsvButton").addEventListener("click", downloadCsv);
   document.querySelector("#downloadJsonButton").addEventListener("click", downloadJson);
   document.querySelector("#importJsonButton").addEventListener("click", importJson);
@@ -632,19 +634,16 @@ function renderHistory() {
 
 function renderTrends() {
   const mode = els.trendMode.value;
-  const daily = summarizeByDay(records, mode);
-  const maxVolume = Math.max(...daily.map((day) => day.volume), 1);
-  els.trendAlerts.innerHTML = renderAlerts(toDateValue(new Date()), "trend");
-  els.trendChart.innerHTML = daily.length
-    ? daily.slice(-14).map((day) => {
-      const width = Math.max(4, (day.volume / maxVolume) * 100);
-      return `<div class="bar-row"><span>${shortDate(day.date)}</span><div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div><strong>${formatNumber(day.volume)}</strong></div>`;
-    }).join("")
+  const windowHours = Number(els.trendWindow.value || 24);
+  const points = summarizeRolling(records, mode, windowHours);
+  els.trendAlerts.innerHTML = renderRollingAlerts(points, windowHours);
+  els.trendChart.innerHTML = points.length
+    ? renderRollingChart(points.slice(-60), windowHours)
     : emptyState("暂无趋势数据");
-  els.trendTable.innerHTML = daily.length
+  els.trendTable.innerHTML = points.length
     ? [
-      `<div class="trend-table-row"><strong>日期</strong><strong>尿块</strong><strong>体积</strong><strong>屎块</strong></div>`,
-      ...daily.slice(-14).reverse().map((day) => `<div class="trend-table-row"><span>${day.date}</span><span>${day.urineCount}</span><span>${formatNumber(day.volume)} cm³</span><span>${day.stoolCount}</span></div>`),
+      `<div class="trend-table-row"><strong>时间</strong><strong>窗口尿块</strong><strong>窗口体积</strong><strong>屎块</strong></div>`,
+      ...points.slice(-20).reverse().map((point) => `<div class="trend-table-row"><span>${point.date} ${point.time}</span><span>${point.urineCount}</span><span>${formatNumber(point.volume)} cm³</span><span>${point.stoolCount}</span></div>`),
     ].join("")
     : "";
 }
@@ -756,6 +755,69 @@ function summarizeByDay(items, mode) {
     days.set(record.date, current);
   });
   return [...days.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function summarizeRolling(items, mode, windowHours) {
+  const sorted = items
+    .map((record) => ({ record, timestamp: recordTimestamp(record) }))
+    .filter((item) => Number.isFinite(item.timestamp))
+    .sort((a, b) => a.timestamp - b.timestamp);
+  const windowMs = windowHours * 60 * 60 * 1000;
+  return sorted.map((item) => {
+    const start = item.timestamp - windowMs;
+    const totals = sorted
+      .filter((candidate) => candidate.timestamp > start && candidate.timestamp <= item.timestamp)
+      .map((candidate) => summarizeRecord(candidate.record))
+      .reduce((acc, total) => ({
+        urineCount: acc.urineCount + total.urineCount,
+        volume: acc.volume + (mode === "money" ? total.moneyWatchVolume : total.totalVolume),
+        stoolCount: acc.stoolCount + total.stoolCount,
+      }), { urineCount: 0, volume: 0, stoolCount: 0 });
+    return { date: item.record.date, time: item.record.time, timestamp: item.timestamp, ...totals };
+  });
+}
+
+function recordTimestamp(record) {
+  const timestamp = new Date(`${record.date}T${record.time}:00`).getTime();
+  return Number.isFinite(timestamp) ? timestamp : NaN;
+}
+
+function renderRollingChart(points, windowHours) {
+  const width = 640;
+  const height = 250;
+  const padding = { top: 22, right: 18, bottom: 42, left: 48 };
+  const maxVolume = Math.max(...points.map((point) => point.volume), 1);
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const x = (index) => padding.left + (points.length === 1 ? chartWidth / 2 : (index / (points.length - 1)) * chartWidth);
+  const y = (value) => padding.top + chartHeight - (value / maxVolume) * chartHeight;
+  const polyline = points.map((point, index) => `${x(index)},${y(point.volume)}`).join(" ");
+  const grid = [0, 0.5, 1].map((ratio) => {
+    const value = maxVolume * ratio;
+    const position = y(value);
+    return `<line class="chart-gridline" x1="${padding.left}" y1="${position}" x2="${width - padding.right}" y2="${position}" /><text class="chart-axis-label" x="${padding.left - 8}" y="${position + 4}" text-anchor="end">${formatNumber(value)}</text>`;
+  }).join("");
+  const labels = [0, Math.floor((points.length - 1) / 2), points.length - 1]
+    .filter((index, position, list) => list.indexOf(index) === position)
+    .map((index) => `<text class="chart-axis-label" x="${x(index)}" y="${height - 14}" text-anchor="${index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}">${shortDateTime(points[index].date, points[index].time)}</text>`)
+    .join("");
+  const circles = points.map((point, index) => `<circle class="chart-point" cx="${x(index)}" cy="${y(point.volume)}" r="3"><title>${point.date} ${point.time}：${formatNumber(point.volume)} cm³，${windowHours} 小时窗口</title></circle>`).join("");
+  return `<div class="chart-caption">每个点表示该时刻向前 ${windowHours} 小时的累计估算体积</div><svg class="line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${windowHours} 小时滑动尿量趋势图">${grid}<polyline class="chart-line" points="${polyline}" />${circles}${labels}</svg>`;
+}
+
+function shortDateTime(date, time) {
+  return `${date.slice(5).replace("-", "/")} ${time}`;
+}
+
+function renderRollingAlerts(points, windowHours) {
+  if (points.length < 4) return "";
+  const latest = points[points.length - 1];
+  const previous = points.slice(-8, -1).map((point) => point.volume).filter((volume) => volume > 0);
+  if (previous.length < 3) return "";
+  const average = previous.reduce((sum, volume) => sum + volume, 0) / previous.length;
+  return latest.volume > 0 && latest.volume < average * 0.55
+    ? `<div class="alert">最近 ${windowHours} 小时窗口的估算体积低于近期平均水平，建议继续观察。记录存在目测误差，这不是医学诊断。</div>`
+    : "";
 }
 
 function sortRecords(items) {
