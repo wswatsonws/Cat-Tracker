@@ -891,11 +891,18 @@ function shortDateTime(date, time) {
 function renderDailyEstimateAlerts(points, movingDays, range) {
   const anomalies = points.filter((point) => point.anomaly);
   const invalidDimensions = points.reduce((sum, point) => sum + (point.invalidDimensionCount || 0), 0);
+  const invalidDates = points
+    .filter((point) => point.invalidDimensionCount)
+    .map((point) => `${point.date}（${point.invalidDimensionCount} 个）`)
+    .join("、");
   const invalidMessage = invalidDimensions
-    ? `<div class="alert">趋势中已忽略 ${invalidDimensions} 个明显不合理的尿块尺寸（单边超过 30 cm）。原始记录未删除，请到历史记录检查是否把备注时间误填进尺寸。</div>`
+    ? `<div class="alert">趋势中已忽略 ${invalidDimensions} 个明显不合理的尿块尺寸（单边超过 30 cm），日期：${invalidDates}。原始记录未删除，请到历史记录检查是否把备注时间误填进尺寸。</div>`
     : "";
+  const anomalyDates = anomalies
+    .map((point) => `${point.date}（${formatNumber(point.volume)} cm³）`)
+    .join("、");
   const anomalyMessage = anomalies.length
-    ? `<div class="alert">发现 ${anomalies.length} 个明显偏高的估算日，最近的是 ${anomalies[anomalies.length - 1].date}（${formatNumber(anomalies[anomalies.length - 1].volume)} cm³）。它未被删除，但已从移动平均${range === "month" ? "和月均值" : ""}中排除，建议到历史记录核对原始尺寸。</div>`
+    ? `<div class="alert">发现 ${anomalies.length} 个明显偏高的估算日：${anomalyDates}。它们未被删除，但已从移动平均${range === "month" ? "和月均值" : ""}中排除，建议按日期到历史记录核对原始尺寸。</div>`
     : "";
   if (points.length < 4) return `${invalidMessage}${anomalyMessage}`;
   const latest = points[points.length - 1];
