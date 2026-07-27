@@ -517,6 +517,45 @@ details {
   stroke-width: 3;
 }
 
+.chart-line-average {
+  stroke: var(--warn);
+  stroke-dasharray: 7 5;
+  stroke-width: 2.5;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot,
+.legend-line {
+  display: inline-block;
+  width: 18px;
+  height: 3px;
+  background: var(--accent);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.legend-line {
+  background: repeating-linear-gradient(90deg, var(--warn) 0 7px, transparent 7px 12px);
+}
+
 .chart-point {
   fill: var(--accent);
   stroke: #fff;

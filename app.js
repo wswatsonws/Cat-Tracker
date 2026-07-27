@@ -634,16 +634,16 @@ function renderHistory() {
 
 function renderTrends() {
   const mode = els.trendMode.value;
-  const windowHours = Number(els.trendWindow.value || 24);
-  const points = summarizeRolling(records, mode, windowHours);
-  els.trendAlerts.innerHTML = renderRollingAlerts(points, windowHours);
+  const movingDays = Number(els.trendWindow.value || 3);
+  const points = summarizeDailyEstimates(records, mode, movingDays);
+  els.trendAlerts.innerHTML = renderDailyEstimateAlerts(points, movingDays);
   els.trendChart.innerHTML = points.length
-    ? renderRollingChart(points.slice(-60), windowHours)
+    ? renderDailyEstimateChart(points.slice(-60), movingDays)
     : emptyState("暂无趋势数据");
   els.trendTable.innerHTML = points.length
     ? [
-      `<div class="trend-table-row"><strong>时间</strong><strong>窗口尿块</strong><strong>窗口体积</strong><strong>屎块</strong></div>`,
-      ...points.slice(-20).reverse().map((point) => `<div class="trend-table-row"><span>${point.date} ${point.time}</span><span>${point.urineCount}</span><span>${formatNumber(point.volume)} cm³</span><span>${point.stoolCount}</span></div>`),
+      `<div class="trend-table-row"><strong>日期</strong><strong>每日估算</strong><strong>${movingDays}天平均</strong><strong>覆盖</strong></div>`,
+      ...points.slice(-20).reverse().map((point) => `<div class="trend-table-row"><span>${point.date}${point.lowConfidence ? " · 低置信度" : ""}</span><span>${formatNumber(point.volume)} cm³</span><span>${formatNumber(point.movingAverage)} cm³</span><span>${formatNumber(point.coverageHours)} 小时</span></div>`),
     ].join("")
     : "";
 }
@@ -757,24 +757,47 @@ function summarizeByDay(items, mode) {
   return [...days.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function summarizeRolling(items, mode, windowHours) {
+function summarizeDailyEstimates(items, mode, movingDays) {
   const sorted = items
     .map((record) => ({ record, timestamp: recordTimestamp(record) }))
     .filter((item) => Number.isFinite(item.timestamp))
     .sort((a, b) => a.timestamp - b.timestamp);
-  const windowMs = windowHours * 60 * 60 * 1000;
-  return sorted.map((item) => {
-    const start = item.timestamp - windowMs;
-    const totals = sorted
-      .filter((candidate) => candidate.timestamp > start && candidate.timestamp <= item.timestamp)
-      .map((candidate) => summarizeRecord(candidate.record))
-      .reduce((acc, total) => ({
-        urineCount: acc.urineCount + total.urineCount,
-        volume: acc.volume + (mode === "money" ? total.moneyWatchVolume : total.totalVolume),
-        stoolCount: acc.stoolCount + total.stoolCount,
-      }), { urineCount: 0, volume: 0, stoolCount: 0 });
-    return { date: item.record.date, time: item.record.time, timestamp: item.timestamp, ...totals };
+
+  // Each record is the amount found since the previous cleaning. Allocate that
+  // interval across calendar days so irregular cleaning times do not distort
+  // the daily estimate or give later points repeated credit for old records.
+  const days = new Map();
+  sorted.slice(1).forEach((item, index) => {
+    const previous = sorted[index];
+    const intervalHours = (item.timestamp - previous.timestamp) / 3600000;
+    if (!(intervalHours > 0)) return;
+    const total = summarizeRecord(item.record);
+    const volume = mode === "money" ? total.moneyWatchVolume : total.totalVolume;
+    const intervalStart = previous.timestamp;
+    const intervalEnd = item.timestamp;
+    const lowConfidence = intervalHours > 48;
+
+    for (let cursor = startOfLocalDay(intervalStart); cursor < intervalEnd; cursor = addLocalDays(cursor, 1)) {
+      const dayStart = cursor;
+      const dayEnd = addLocalDays(cursor, 1);
+      const coveredMs = Math.max(0, Math.min(intervalEnd, dayEnd) - Math.max(intervalStart, dayStart));
+      if (!coveredMs) continue;
+      const date = toDateValue(new Date(cursor));
+      const current = days.get(date) || { date, volume: 0, coverageHours: 0, lowConfidence: false };
+      current.volume += volume * (coveredMs / (intervalHours * 3600000));
+      current.coverageHours += coveredMs / 3600000;
+      current.lowConfidence ||= lowConfidence;
+      days.set(date, current);
+    }
   });
+
+  const daily = [...days.values()].sort((a, b) => a.date.localeCompare(b.date));
+  return daily.map((point, index) => ({
+    ...point,
+    movingAverage: daily
+      .slice(Math.max(0, index - movingDays + 1), index + 1)
+      .reduce((sum, item) => sum + item.volume, 0) / Math.min(movingDays, index + 1),
+  }));
 }
 
 function recordTimestamp(record) {
@@ -782,16 +805,16 @@ function recordTimestamp(record) {
   return Number.isFinite(timestamp) ? timestamp : NaN;
 }
 
-function renderRollingChart(points, windowHours) {
+function renderDailyEstimateChart(points, movingDays) {
   const width = 640;
   const height = 250;
   const padding = { top: 22, right: 18, bottom: 42, left: 48 };
-  const maxVolume = Math.max(...points.map((point) => point.volume), 1);
+  const maxVolume = Math.max(...points.flatMap((point) => [point.volume, point.movingAverage]), 1);
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
   const x = (index) => padding.left + (points.length === 1 ? chartWidth / 2 : (index / (points.length - 1)) * chartWidth);
   const y = (value) => padding.top + chartHeight - (value / maxVolume) * chartHeight;
-  const polyline = points.map((point, index) => `${x(index)},${y(point.volume)}`).join(" ");
+  const polyline = (key) => points.map((point, index) => `${x(index)},${y(point[key])}`).join(" ");
   const grid = [0, 0.5, 1].map((ratio) => {
     const value = maxVolume * ratio;
     const position = y(value);
@@ -799,25 +822,35 @@ function renderRollingChart(points, windowHours) {
   }).join("");
   const labels = [0, Math.floor((points.length - 1) / 2), points.length - 1]
     .filter((index, position, list) => list.indexOf(index) === position)
-    .map((index) => `<text class="chart-axis-label" x="${x(index)}" y="${height - 14}" text-anchor="${index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}">${shortDateTime(points[index].date, points[index].time)}</text>`)
+    .map((index) => `<text class="chart-axis-label" x="${x(index)}" y="${height - 14}" text-anchor="${index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}">${shortDate(points[index].date)}</text>`)
     .join("");
-  const circles = points.map((point, index) => `<circle class="chart-point" cx="${x(index)}" cy="${y(point.volume)}" r="3"><title>${point.date} ${point.time}：${formatNumber(point.volume)} cm³，${windowHours} 小时窗口</title></circle>`).join("");
-  return `<div class="chart-caption">每个点表示该时刻向前 ${windowHours} 小时的累计估算体积</div><svg class="line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${windowHours} 小时滑动尿量趋势图">${grid}<polyline class="chart-line" points="${polyline}" />${circles}${labels}</svg>`;
+  const circles = points.map((point, index) => `<circle class="chart-point" cx="${x(index)}" cy="${y(point.volume)}" r="3"><title>${point.date}：每日估算 ${formatNumber(point.volume)} cm³${point.lowConfidence ? "，低置信度" : ""}</title></circle>`).join("");
+  return `<div class="chart-caption">实线是每日估算量，虚线是 ${movingDays} 天移动平均。每日估算按相邻铲屎记录的时间间隔分摊，记录存在目测误差。</div><div class="chart-legend"><span><i class="legend-dot"></i>每日估算</span><span><i class="legend-line"></i>${movingDays} 天移动平均</span></div><svg class="line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="每日估算尿量和移动平均趋势图">${grid}<polyline class="chart-line" points="${polyline("volume")}" />${circles}<polyline class="chart-line chart-line-average" points="${polyline("movingAverage")}" />${labels}</svg>`;
 }
 
 function shortDateTime(date, time) {
   return `${date.slice(5).replace("-", "/")} ${time}`;
 }
 
-function renderRollingAlerts(points, windowHours) {
+function renderDailyEstimateAlerts(points, movingDays) {
   if (points.length < 4) return "";
   const latest = points[points.length - 1];
-  const previous = points.slice(-8, -1).map((point) => point.volume).filter((volume) => volume > 0);
-  if (previous.length < 3) return "";
+  const previous = points.slice(-8, -1).map((point) => point.movingAverage).filter((volume) => volume > 0);
+  if (previous.length < 3 || latest.lowConfidence) return latest.lowConfidence ? `<div class="alert">最近一段记录距离上次铲屎超过 48 小时，本日尿量为低置信度估算，建议结合原始记录观察。</div>` : "";
   const average = previous.reduce((sum, volume) => sum + volume, 0) / previous.length;
-  return latest.volume > 0 && latest.volume < average * 0.55
-    ? `<div class="alert">最近 ${windowHours} 小时窗口的估算体积低于近期平均水平，建议继续观察。记录存在目测误差，这不是医学诊断。</div>`
+  return latest.movingAverage > 0 && latest.movingAverage < average * 0.55
+    ? `<div class="alert">最近 ${movingDays} 天移动平均低于近期水平，建议继续观察。记录存在目测误差，这不是医学诊断。</div>`
     : "";
+}
+
+function startOfLocalDay(timestamp) {
+  const date = new Date(timestamp);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+function addLocalDays(timestamp, days) {
+  const date = new Date(timestamp);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days).getTime();
 }
 
 function sortRecords(items) {
