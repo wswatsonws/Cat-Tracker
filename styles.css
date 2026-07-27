@@ -562,6 +562,18 @@ details {
   stroke-width: 2;
 }
 
+.chart-point-anomaly {
+  fill: var(--danger);
+}
+
+.legend-anomaly {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
 .bar-row {
   display: grid;
   grid-template-columns: 52px 1fr 72px;

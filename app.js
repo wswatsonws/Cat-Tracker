@@ -65,6 +65,7 @@ const els = {
   todayAlerts: document.querySelector("#todayAlerts"),
   historyDate: document.querySelector("#historyDate"),
   historyRecords: document.querySelector("#historyRecords"),
+  trendRange: document.querySelector("#trendRange"),
   trendMode: document.querySelector("#trendMode"),
   trendWindow: document.querySelector("#trendWindow"),
   trendAlerts: document.querySelector("#trendAlerts"),
@@ -132,6 +133,7 @@ function bindEvents() {
   });
   document.querySelector("#resetFormButton").addEventListener("click", resetForm);
   els.historyDate.addEventListener("change", renderAll);
+  els.trendRange.addEventListener("change", renderAll);
   els.trendMode.addEventListener("change", renderAll);
   els.trendWindow.addEventListener("change", renderAll);
   document.querySelector("#downloadCsvButton").addEventListener("click", downloadCsv);
@@ -633,17 +635,19 @@ function renderHistory() {
 }
 
 function renderTrends() {
+  const range = els.trendRange.value || "day";
   const mode = els.trendMode.value;
-  const movingDays = Number(els.trendWindow.value || 3);
-  const points = summarizeDailyEstimates(records, mode, movingDays);
-  els.trendAlerts.innerHTML = renderDailyEstimateAlerts(points, movingDays);
+  const movingWindow = Number(els.trendWindow.value || 3);
+  const daily = summarizeDailyEstimates(records, mode, movingWindow);
+  const points = range === "month" ? summarizeMonthlyEstimates(daily, movingWindow) : daily;
+  els.trendAlerts.innerHTML = renderDailyEstimateAlerts(daily, movingWindow, range);
   els.trendChart.innerHTML = points.length
-    ? renderDailyEstimateChart(points.slice(-60), movingDays)
+    ? renderDailyEstimateChart(points.slice(-60), movingWindow, range)
     : emptyState("暂无趋势数据");
   els.trendTable.innerHTML = points.length
     ? [
-      `<div class="trend-table-row"><strong>日期</strong><strong>每日估算</strong><strong>${movingDays}天平均</strong><strong>覆盖</strong></div>`,
-      ...points.slice(-20).reverse().map((point) => `<div class="trend-table-row"><span>${point.date}${point.lowConfidence ? " · 低置信度" : ""}</span><span>${formatNumber(point.volume)} cm³</span><span>${formatNumber(point.movingAverage)} cm³</span><span>${formatNumber(point.coverageHours)} 小时</span></div>`),
+      `<div class="trend-table-row"><strong>${range === "month" ? "月份" : "日期"}</strong><strong>${range === "month" ? "月内日均" : "每日估算"}</strong><strong>${movingWindow}${range === "month" ? "个月" : "天"}平均</strong><strong>${range === "month" ? "异常日" : "覆盖"}</strong></div>`,
+      ...points.slice(-20).reverse().map((point) => `<div class="trend-table-row"><span>${point.date}${point.anomaly || point.anomalyCount ? " · 含异常" : ""}${point.lowConfidence ? " · 低置信度" : ""}</span><span>${formatNumber(point.volume)} cm³</span><span>${formatNumber(point.movingAverage)} cm³</span><span>${range === "month" ? `${point.anomalyCount || 0} 天` : `${formatNumber(point.coverageHours)} 小时`}</span></div>`),
     ].join("")
     : "";
 }
@@ -771,8 +775,8 @@ function summarizeDailyEstimates(items, mode, movingDays) {
     const previous = sorted[index];
     const intervalHours = (item.timestamp - previous.timestamp) / 3600000;
     if (!(intervalHours > 0)) return;
-    const total = summarizeRecord(item.record);
-    const volume = mode === "money" ? total.moneyWatchVolume : total.totalVolume;
+    const total = summarizeTrendRecord(item.record, mode);
+    const volume = total.volume;
     const intervalStart = previous.timestamp;
     const intervalEnd = item.timestamp;
     const lowConfidence = intervalHours > 48;
@@ -783,21 +787,71 @@ function summarizeDailyEstimates(items, mode, movingDays) {
       const coveredMs = Math.max(0, Math.min(intervalEnd, dayEnd) - Math.max(intervalStart, dayStart));
       if (!coveredMs) continue;
       const date = toDateValue(new Date(cursor));
-      const current = days.get(date) || { date, volume: 0, coverageHours: 0, lowConfidence: false };
+      const current = days.get(date) || { date, volume: 0, coverageHours: 0, lowConfidence: false, invalidDimensionCount: 0 };
       current.volume += volume * (coveredMs / (intervalHours * 3600000));
       current.coverageHours += coveredMs / 3600000;
       current.lowConfidence ||= lowConfidence;
+      if (date === item.record.date) current.invalidDimensionCount += total.invalidDimensionCount;
       days.set(date, current);
     }
   });
 
   const daily = [...days.values()].sort((a, b) => a.date.localeCompare(b.date));
-  return daily.map((point, index) => ({
-    ...point,
-    movingAverage: daily
-      .slice(Math.max(0, index - movingDays + 1), index + 1)
-      .reduce((sum, item) => sum + item.volume, 0) / Math.min(movingDays, index + 1),
-  }));
+  const positiveValues = daily.map((point) => point.volume).filter((value) => value > 0).sort((a, b) => a - b);
+  const median = positiveValues.length ? positiveValues[Math.floor(positiveValues.length / 2)] : 0;
+  const deviations = positiveValues.map((value) => Math.abs(value - median)).sort((a, b) => a - b);
+  const mad = deviations.length ? deviations[Math.floor(deviations.length / 2)] : 0;
+  const threshold = Math.max(median * 3, median + mad * 6, 300);
+  const marked = daily.map((point) => ({ ...point, anomaly: point.volume > threshold }));
+  return addMovingAverage(marked, movingDays);
+}
+
+function addMovingAverage(points, windowSize) {
+  return points.map((point, index) => {
+    const window = points.slice(Math.max(0, index - windowSize + 1), index + 1);
+    const reliable = window.filter((item) => !item.anomaly);
+    const values = (reliable.length ? reliable : window).map((item) => item.volume);
+    return { ...point, movingAverage: values.reduce((sum, value) => sum + value, 0) / values.length };
+  });
+}
+
+function summarizeTrendRecord(record, mode) {
+  const urines = [record.boxes.left, record.boxes.right]
+    .flatMap((box) => box.urines || []);
+  const validUrines = urines.filter(isPlausibleUrineDimension);
+  const volume = validUrines
+    .filter((urine) => mode !== "money" || !["lucky", "suspected_lucky", "exclude_money"].includes(urine.owner))
+    .reduce((sum, urine) => sum + volumeOf(urine), 0);
+  return { volume, invalidDimensionCount: urines.length - validUrines.length };
+}
+
+function isPlausibleUrineDimension(urine) {
+  return [urine.length, urine.width, urine.height].every((value) => Number.isFinite(Number(value)) && Number(value) > 0 && Number(value) <= 30);
+}
+
+function summarizeMonthlyEstimates(daily, movingMonths) {
+  const months = new Map();
+  daily.forEach((point) => {
+    const month = point.date.slice(0, 7);
+    const current = months.get(month) || { date: month, volume: 0, coverageHours: 0, anomalyCount: 0, invalidDimensionCount: 0, lowConfidence: false, validDays: 0 };
+    if (!point.anomaly) {
+      current.volume += point.volume;
+      current.validDays += 1;
+    }
+    current.coverageHours += point.coverageHours;
+    current.anomalyCount += point.anomaly ? 1 : 0;
+    current.invalidDimensionCount += point.invalidDimensionCount || 0;
+    current.lowConfidence ||= point.lowConfidence;
+    months.set(month, current);
+  });
+  const points = [...months.values()]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((point) => ({
+      ...point,
+      volume: point.validDays ? point.volume / point.validDays : 0,
+      anomaly: false,
+    }));
+  return addMovingAverage(points, movingMonths);
 }
 
 function recordTimestamp(record) {
@@ -805,7 +859,7 @@ function recordTimestamp(record) {
   return Number.isFinite(timestamp) ? timestamp : NaN;
 }
 
-function renderDailyEstimateChart(points, movingDays) {
+function renderDailyEstimateChart(points, movingWindow, range) {
   const width = 640;
   const height = 250;
   const padding = { top: 22, right: 18, bottom: 42, left: 48 };
@@ -822,25 +876,35 @@ function renderDailyEstimateChart(points, movingDays) {
   }).join("");
   const labels = [0, Math.floor((points.length - 1) / 2), points.length - 1]
     .filter((index, position, list) => list.indexOf(index) === position)
-    .map((index) => `<text class="chart-axis-label" x="${x(index)}" y="${height - 14}" text-anchor="${index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}">${shortDate(points[index].date)}</text>`)
+    .map((index) => `<text class="chart-axis-label" x="${x(index)}" y="${height - 14}" text-anchor="${index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}">${range === "month" ? points[index].date : shortDate(points[index].date)}</text>`)
     .join("");
-  const circles = points.map((point, index) => `<circle class="chart-point" cx="${x(index)}" cy="${y(point.volume)}" r="3"><title>${point.date}：每日估算 ${formatNumber(point.volume)} cm³${point.lowConfidence ? "，低置信度" : ""}</title></circle>`).join("");
-  return `<div class="chart-caption">实线是每日估算量，虚线是 ${movingDays} 天移动平均。每日估算按相邻铲屎记录的时间间隔分摊，记录存在目测误差。</div><div class="chart-legend"><span><i class="legend-dot"></i>每日估算</span><span><i class="legend-line"></i>${movingDays} 天移动平均</span></div><svg class="line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="每日估算尿量和移动平均趋势图">${grid}<polyline class="chart-line" points="${polyline("volume")}" />${circles}<polyline class="chart-line chart-line-average" points="${polyline("movingAverage")}" />${labels}</svg>`;
+  const unit = range === "month" ? "个月" : "天";
+  const measure = range === "month" ? "月内日均" : "每日估算";
+  const circles = points.map((point, index) => `<circle class="chart-point${point.anomaly || point.anomalyCount ? " chart-point-anomaly" : ""}" cx="${x(index)}" cy="${y(point.volume)}" r="${point.anomaly || point.anomalyCount ? 5 : 3}"><title>${point.date}：${measure} ${formatNumber(point.volume)} cm³${point.anomaly ? "，异常估算" : point.anomalyCount ? `，${point.anomalyCount} 个异常日已排除` : ""}${point.lowConfidence ? "，低置信度" : ""}</title></circle>`).join("");
+  return `<div class="chart-caption">实线是${measure}，虚线是 ${movingWindow} ${unit}移动平均。异常日保留在原始数据中，但不参与平均线和月均值。</div><div class="chart-legend"><span><i class="legend-dot"></i>${measure}</span><span><i class="legend-line"></i>${movingWindow} ${unit}移动平均</span><span><i class="legend-anomaly"></i>异常估算</span></div><svg class="line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="尿量估算和移动平均趋势图">${grid}<polyline class="chart-line" points="${polyline("volume")}" />${circles}<polyline class="chart-line chart-line-average" points="${polyline("movingAverage")}" />${labels}</svg>`;
 }
 
 function shortDateTime(date, time) {
   return `${date.slice(5).replace("-", "/")} ${time}`;
 }
 
-function renderDailyEstimateAlerts(points, movingDays) {
-  if (points.length < 4) return "";
+function renderDailyEstimateAlerts(points, movingDays, range) {
+  const anomalies = points.filter((point) => point.anomaly);
+  const invalidDimensions = points.reduce((sum, point) => sum + (point.invalidDimensionCount || 0), 0);
+  const invalidMessage = invalidDimensions
+    ? `<div class="alert">趋势中已忽略 ${invalidDimensions} 个明显不合理的尿块尺寸（单边超过 30 cm）。原始记录未删除，请到历史记录检查是否把备注时间误填进尺寸。</div>`
+    : "";
+  const anomalyMessage = anomalies.length
+    ? `<div class="alert">发现 ${anomalies.length} 个明显偏高的估算日，最近的是 ${anomalies[anomalies.length - 1].date}（${formatNumber(anomalies[anomalies.length - 1].volume)} cm³）。它未被删除，但已从移动平均${range === "month" ? "和月均值" : ""}中排除，建议到历史记录核对原始尺寸。</div>`
+    : "";
+  if (points.length < 4) return `${invalidMessage}${anomalyMessage}`;
   const latest = points[points.length - 1];
   const previous = points.slice(-8, -1).map((point) => point.movingAverage).filter((volume) => volume > 0);
-  if (previous.length < 3 || latest.lowConfidence) return latest.lowConfidence ? `<div class="alert">最近一段记录距离上次铲屎超过 48 小时，本日尿量为低置信度估算，建议结合原始记录观察。</div>` : "";
+  if (previous.length < 3 || latest.lowConfidence) return `${invalidMessage}${anomalyMessage}${latest.lowConfidence ? `<div class="alert">最近一段记录距离上次铲屎超过 48 小时，本日尿量为低置信度估算，建议结合原始记录观察。</div>` : ""}`;
   const average = previous.reduce((sum, volume) => sum + volume, 0) / previous.length;
   return latest.movingAverage > 0 && latest.movingAverage < average * 0.55
-    ? `<div class="alert">最近 ${movingDays} 天移动平均低于近期水平，建议继续观察。记录存在目测误差，这不是医学诊断。</div>`
-    : "";
+    ? `${invalidMessage}${anomalyMessage}<div class="alert">最近 ${movingDays} 天移动平均低于近期水平，建议继续观察。记录存在目测误差，这不是医学诊断。</div>`
+    : `${invalidMessage}${anomalyMessage}`;
 }
 
 function startOfLocalDay(timestamp) {
