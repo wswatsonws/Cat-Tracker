@@ -1,6 +1,93 @@
 const STORAGE_KEY = "money-cat-tracker-records-v1";
 const SUPABASE_URL = "https://kciebvyryqblfmbamasp.supabase.co";
 const SUPABASE_KEY = "sb_publishable_XUQPY1_R98Ce11GTeFlaMA_3Ir5pXf3";
+const LANGUAGE_KEY = "money-cat-tracker-language";
+let currentLanguage = "zh";
+
+const TEXT_TRANSLATIONS = {
+  "猫砂记录": { en: "Litter Tracker", fr: "Suivi de litière" },
+  "安装提示": { en: "Installation help", fr: "Aide à l’installation" },
+  "登录": { en: "Sign in", fr: "Connexion" },
+  "登录后记录会保存到 Supabase，你和对象加入同一个家庭空间后就能共享。": { en: "Records are saved to Supabase after sign-in. Join the same family space to share them.", fr: "Après connexion, les données sont enregistrées dans Supabase. Rejoignez le même espace familial pour les partager." },
+  "邮箱": { en: "Email", fr: "E-mail" },
+  "密码": { en: "Password", fr: "Mot de passe" },
+  "至少 6 位": { en: "At least 6 characters", fr: "6 caractères minimum" },
+  "注册账号": { en: "Create account", fr: "Créer un compte" },
+  "忘记密码": { en: "Forgot password", fr: "Mot de passe oublié" },
+  "家庭空间": { en: "Family space", fr: "Espace familial" },
+  "第一位登录的人创建家庭空间；另一位登录后粘贴家庭 ID 加入。": { en: "The first person creates the family space. The other person can join with the family ID.", fr: "La première personne crée l’espace familial. L’autre peut le rejoindre avec l’identifiant familial." },
+  "家庭名称": { en: "Family name", fr: "Nom de la famille" },
+  "创建家庭空间": { en: "Create family space", fr: "Créer l’espace familial" },
+  "加入已有家庭 ID": { en: "Join with a family ID", fr: "Rejoindre avec un identifiant familial" },
+  "加入家庭": { en: "Join family", fr: "Rejoindre la famille" },
+  "退出登录": { en: "Sign out", fr: "Se déconnecter" },
+  "退出": { en: "Sign out", fr: "Se déconnecter" },
+  "未登录": { en: "Not signed in", fr: "Non connecté" },
+  "云端同步已启用": { en: "Cloud sync is on", fr: "Synchronisation cloud activée" },
+  "今日记录": { en: "Today", fr: "Aujourd’hui" },
+  "新增": { en: "Add", fr: "Ajouter" },
+  "日期": { en: "Date", fr: "Date" },
+  "时间": { en: "Time", fr: "Heure" },
+  "左盆": { en: "Left tray", fr: "Bac gauche" },
+  "右盆": { en: "Right tray", fr: "Bac droit" },
+  "+ 继续添加尿块": { en: "+ Add another urine clump", fr: "+ Ajouter un autre amas d’urine" },
+  "屎块数": { en: "Stool count", fr: "Nombre de selles" },
+  "屎便备注": { en: "Stool note", fr: "Note sur les selles" },
+  "备注": { en: "Notes", fr: "Notes" },
+  "清空": { en: "Clear", fr: "Effacer" },
+  "保存记录": { en: "Save record", fr: "Enregistrer" },
+  "历史记录": { en: "History", fr: "Historique" },
+  "趋势分析": { en: "Trends", fr: "Tendances" },
+  "按日": { en: "Daily", fr: "Par jour" },
+  "按月": { en: "Monthly", fr: "Monthly" },
+  "全部尿块": { en: "All urine clumps", fr: "Tous les amas d’urine" },
+  "排除明显 Lucky": { en: "Exclude obvious Lucky clumps", fr: "Exclure les amas clairement attribués à Lucky" },
+  "3 天移动平均": { en: "3-day moving average", fr: "Moyenne mobile sur 3 jours" },
+  "7 天移动平均": { en: "7-day moving average", fr: "Moyenne mobile sur 7 jours" },
+  "设置与导出": { en: "Settings & export", fr: "Réglages et export" },
+  "名称": { en: "Name", fr: "Nom" },
+  "保存家庭名称": { en: "Save family name", fr: "Enregistrer le nom" },
+  "家庭 ID": { en: "Family ID", fr: "Identifiant familial" },
+  "复制家庭 ID": { en: "Copy family ID", fr: "Copier l’identifiant" },
+  "账号密码": { en: "Account password", fr: "Mot de passe du compte" },
+  "新密码": { en: "New password", fr: "Nouveau mot de passe" },
+  "修改密码": { en: "Change password", fr: "Modifier le mot de passe" },
+  "下载 CSV": { en: "Download CSV", fr: "Télécharger CSV" },
+  "下载 JSON": { en: "Download JSON", fr: "Télécharger JSON" },
+  "导入本机旧记录": { en: "Import old local records", fr: "Importer les anciennes données locales" },
+  "导入 JSON 备份": { en: "Import JSON backup", fr: "Importer une sauvegarde JSON" },
+  "导入": { en: "Import", fr: "Importer" },
+  "今日": { en: "Today", fr: "Aujourd’hui" },
+  "历史": { en: "History", fr: "Historique" },
+  "趋势": { en: "Trends", fr: "Tendances" },
+  "设置": { en: "Settings", fr: "Réglages" },
+  "长": { en: "Length", fr: "Longueur" },
+  "宽": { en: "Width", fr: "Largeur" },
+  "高": { en: "Height", fr: "Hauteur" },
+  "未知": { en: "Unknown", fr: "Inconnu" },
+  "疑似 Lucky": { en: "Possibly Lucky", fr: "Probablement Lucky" },
+  "确认 Money": { en: "Confirmed Money", fr: "Money confirmé" },
+  "确认 Lucky": { en: "Confirmed Lucky", fr: "Lucky confirmé" },
+  "排除 Money 分析": { en: "Exclude from Money analysis", fr: "Exclure de l’analyse de Money" },
+  "删除尿块": { en: "Remove urine clump", fr: "Supprimer l’amas d’urine" },
+  "无尿块": { en: "No urine clumps", fr: "Aucun amas d’urine" },
+  "个屎块": { en: "stool clumps", fr: "amas de selles" },
+  "检查次数": { en: "Checks", fr: "Vérifications" },
+  "尿块": { en: "Urine clumps", fr: "Amas d’urine" },
+  "估算体积": { en: "Estimated volume", fr: "Volume estimé" },
+  "屎块": { en: "Stool clumps", fr: "Amas de selles" },
+  "编辑": { en: "Edit", fr: "Modifier" },
+  "删除": { en: "Delete", fr: "Supprimer" },
+  "今天还没有记录": { en: "No records for today", fr: "Aucune donnée aujourd’hui" },
+  "这个日期没有记录": { en: "No records for this date", fr: "Aucune donnée pour cette date" },
+  "暂无趋势数据": { en: "No trend data yet", fr: "Pas encore de données de tendance" },
+  "云端同步已启用，共": { en: "Cloud sync is on, ", fr: "Synchronisation cloud activée, " },
+  "软便 / 长条 / 大条": { en: "Soft / long / large", fr: "Molle / longue / grosse" },
+  "补水、呕吐、亲眼看到 Money、疑似 Lucky、频繁进盆等": { en: "Extra water, vomiting, saw Money, possibly Lucky, frequent tray visits, etc.", fr: "Eau ajoutée, vomissement, Money vu, probablement Lucky, passages fréquents au bac, etc." },
+  "粘贴对方页面里显示的家庭 ID": { en: "Paste the family ID shown on the other person’s page", fr: "Collez l’identifiant familial affiché sur l’autre téléphone" },
+  "粘贴之前导出的 JSON": { en: "Paste a previously exported JSON file", fr: "Collez un fichier JSON exporté précédemment" },
+};
+
 const OWNER_LABELS = {
   unknown: "未知",
   suspected_lucky: "疑似 Lucky",
@@ -8,6 +95,50 @@ const OWNER_LABELS = {
   lucky: "确认 Lucky",
   exclude_money: "排除 Money",
 };
+
+function ownerLabel(owner) {
+  const value = OWNER_LABELS[owner] || OWNER_LABELS.unknown;
+  return translateText(value);
+}
+
+function translateText(value) {
+  return currentLanguage === "zh" ? value : TEXT_TRANSLATIONS[value]?.[currentLanguage] || value;
+}
+
+function detectLanguage() {
+  const saved = localStorage.getItem(LANGUAGE_KEY);
+  if (saved && ["zh", "en", "fr"].includes(saved)) return saved;
+  const system = String(navigator.language || "").toLowerCase();
+  return system.startsWith("fr") ? "fr" : system.startsWith("en") ? "en" : "zh";
+}
+
+function applyLanguage() {
+  document.documentElement.lang = currentLanguage === "zh" ? "zh-CN" : currentLanguage;
+  document.title = currentLanguage === "zh" ? "Money 猫砂记录" : currentLanguage === "fr" ? "Suivi de litière Money" : "Money Litter Tracker";
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach((node) => {
+    const source = node._i18nSource || node.nodeValue.trim();
+    if (!source || !TEXT_TRANSLATIONS[source]) return;
+    node._i18nSource = source;
+    node.nodeValue = node.nodeValue.replace(source, translateText(source));
+  });
+  document.querySelectorAll("[placeholder]").forEach((element) => {
+    const source = element.dataset.sourcePlaceholder || element.getAttribute("placeholder");
+    if (TEXT_TRANSLATIONS[source]) {
+      element.dataset.sourcePlaceholder = source;
+      element.setAttribute("placeholder", translateText(source));
+    }
+  });
+  document.querySelectorAll("[aria-label]").forEach((element) => {
+    const source = element.dataset.sourceAria || element.getAttribute("aria-label");
+    if (TEXT_TRANSLATIONS[source]) {
+      element.dataset.sourceAria = source;
+      element.setAttribute("aria-label", translateText(source));
+    }
+  });
+}
 
 if (!window.supabase) {
   document.addEventListener("DOMContentLoaded", () => {
@@ -32,6 +163,7 @@ const els = {
   appMain: document.querySelector("#appMain"),
   authEmail: document.querySelector("#authEmail"),
   authPassword: document.querySelector("#authPassword"),
+  languageSelect: document.querySelector("#languageSelect"),
   authMessage: document.querySelector("#authMessage"),
   createFamilyName: document.querySelector("#createFamilyName"),
   familyNameInput: document.querySelector("#familyNameInput"),
@@ -77,6 +209,9 @@ const els = {
 init();
 
 async function init() {
+  currentLanguage = detectLanguage();
+  els.languageSelect.value = currentLanguage;
+  applyLanguage();
   const now = new Date();
   els.date.value = toDateValue(now);
   els.time.value = toTimeValue(now);
@@ -103,6 +238,12 @@ function bindEvents() {
   document.querySelector("#saveFamilyNameButton").addEventListener("click", saveFamilyName);
   document.querySelector("#joinFamilyButton").addEventListener("click", joinFamily);
   document.querySelector("#copyFamilyIdButton").addEventListener("click", copyFamilyId);
+  els.languageSelect.addEventListener("change", () => {
+    currentLanguage = els.languageSelect.value;
+    localStorage.setItem(LANGUAGE_KEY, currentLanguage);
+    applyLanguage();
+    renderAll();
+  });
 
   document.querySelectorAll("[data-open-tab]").forEach((button) => {
     button.addEventListener("click", () => openTab(button.dataset.openTab));
@@ -610,6 +751,7 @@ function renderAll() {
   renderToday();
   renderHistory();
   renderTrends();
+  applyLanguage();
 }
 
 function renderToday() {
@@ -659,9 +801,9 @@ function renderRecordCard(record) {
       <header>
         <div>
           <h3>${record.date} ${record.time}</h3>
-          <div class="meta">尿块 ${total.urineCount} 个 · ${formatNumber(total.totalVolume)} cm³ · 屎块 ${total.stoolCount} 个</div>
+          <div class="meta">${total.urineCount} ${translateText("尿块")} · ${formatNumber(total.totalVolume)} cm³ · ${total.stoolCount} ${translateText("屎块")}</div>
         </div>
-        <div class="meta">Money 观察 ${formatNumber(total.moneyWatchVolume)} cm³</div>
+        <div class="meta">${currentLanguage === "zh" ? "Money 观察" : currentLanguage === "fr" ? "Money observé" : "Money observed"} ${formatNumber(total.moneyWatchVolume)} cm³</div>
       </header>
       <div class="box-lines">
         ${renderBoxLine("左盆", record.boxes.left)}
@@ -669,8 +811,8 @@ function renderRecordCard(record) {
       </div>
       ${record.note ? `<p class="muted">${escapeHtml(record.note)}</p>` : ""}
       <div class="record-actions">
-        <button class="secondary-button" type="button" data-edit="${record.id}">编辑</button>
-        <button class="secondary-button" type="button" data-delete="${record.id}">删除</button>
+        <button class="secondary-button" type="button" data-edit="${record.id}">${translateText("编辑")}</button>
+        <button class="secondary-button" type="button" data-delete="${record.id}">${translateText("删除")}</button>
       </div>
     </article>
   `;
@@ -678,10 +820,10 @@ function renderRecordCard(record) {
 
 function renderBoxLine(label, box) {
   const urineText = box.urines.length
-    ? box.urines.map((urine) => `${formatNumber(urine.length)}×${formatNumber(urine.width)}×${formatNumber(urine.height)} ${OWNER_LABELS[urine.owner]}`).join("，")
-    : "无尿块";
-  const stoolText = `${box.stoolCount || 0} 个屎块${box.stoolNote ? `，${escapeHtml(box.stoolNote)}` : ""}`;
-  return `<div class="box-line"><strong>${label}</strong>：${escapeHtml(urineText)}；${stoolText}</div>`;
+    ? box.urines.map((urine) => `${formatNumber(urine.length)}×${formatNumber(urine.width)}×${formatNumber(urine.height)} ${ownerLabel(urine.owner)}`).join(currentLanguage === "fr" ? ", " : currentLanguage === "en" ? ", " : "，")
+    : translateText("无尿块");
+  const stoolText = `${box.stoolCount || 0} ${translateText("个屎块")}${box.stoolNote ? `${currentLanguage === "zh" ? "，" : ", "}${escapeHtml(box.stoolNote)}` : ""}`;
+  return `<div class="box-line"><strong>${translateText(label)}</strong>${currentLanguage === "zh" ? "：" : ": "}${escapeHtml(urineText)}${currentLanguage === "zh" ? "；" : "; "}${stoolText}</div>`;
 }
 
 function bindRecordButtons(container) {
@@ -719,11 +861,11 @@ function renderAlerts(date, placement) {
 }
 
 function metric(label, value) {
-  return `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`;
+  return `<div class="metric"><span>${translateText(label)}</span><strong>${value}</strong></div>`;
 }
 
 function emptyState(text) {
-  return `<div class="alert">${text}</div>`;
+  return `<div class="alert">${translateText(text)}</div>`;
 }
 
 function summarizeRecord(record) {
@@ -1175,23 +1317,23 @@ function escapeHtml(value) {
 }
 
 function setStatus(message) {
-  els.syncStatus.textContent = message;
+  els.syncStatus.textContent = translateText(message);
 }
 
 function setAuthMessage(message) {
-  els.authMessage.textContent = message;
+  els.authMessage.textContent = translateText(message);
 }
 
 function setFamilyMessage(message) {
-  els.familyMessage.textContent = message;
+  els.familyMessage.textContent = translateText(message);
 }
 
 function setPasswordMessage(message) {
-  els.passwordMessage.textContent = message;
+  els.passwordMessage.textContent = translateText(message);
 }
 
 function setFamilyNameMessage(message) {
-  els.familyNameMessage.textContent = message;
+  els.familyNameMessage.textContent = translateText(message);
 }
 
 function setAuthBusy(isBusy, message = "") {
