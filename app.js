@@ -105,6 +105,26 @@ function translateText(value) {
   return currentLanguage === "zh" ? value : TEXT_TRANSLATIONS[value]?.[currentLanguage] || value;
 }
 
+function countText(value, type) {
+  if (currentLanguage === "zh") return `${value}个`;
+  if (currentLanguage === "fr") {
+    const labels = { urine: "amas d’urine", stool: "amas de selles", check: "vérification", record: "enregistrement" };
+    return `${value} ${labels[type] || "élément"}${value > 1 ? "s" : ""}`;
+  }
+  const labels = { urine: "urine clump", stool: "stool clump", check: "check", record: "record" };
+  return `${value} ${labels[type] || "item"}${value === 1 ? "" : "s"}`;
+}
+
+function totalText(total) {
+  if (currentLanguage === "fr") {
+    return `Total : ${countText(total.urineCount, "urine")}, volume estimé ${formatNumber(total.totalVolume)} cm³ ; après exclusion des amas clairement attribués à Lucky : ${formatNumber(total.moneyWatchVolume)} cm³ ; ${countText(total.stoolCount, "stool")}.`;
+  }
+  if (currentLanguage === "en") {
+    return `Total: ${countText(total.urineCount, "urine")}, estimated volume ${formatNumber(total.totalVolume)} cm³; after excluding obvious Lucky clumps: ${formatNumber(total.moneyWatchVolume)} cm³; ${countText(total.stoolCount, "stool")}.`;
+  }
+  return `本次合计：尿块 ${total.urineCount} 个，估算体积 ${formatNumber(total.totalVolume)} cm³；排除明显 Lucky 后 ${formatNumber(total.moneyWatchVolume)} cm³；屎块 ${total.stoolCount} 个。`;
+}
+
 function detectLanguage() {
   const saved = localStorage.getItem(LANGUAGE_KEY);
   if (saved && ["zh", "en", "fr"].includes(saved)) return saved;
@@ -500,7 +520,11 @@ async function loadRecords() {
     return;
   }
   records = data.map(fromDbRecord);
-  setStatus(`云端同步已启用，共 ${records.length} 条记录`);
+  setStatus(currentLanguage === "fr"
+    ? `Synchronisation cloud activée, ${countText(records.length, "record")}`
+    : currentLanguage === "en"
+      ? `Cloud sync is on, ${countText(records.length, "record")}`
+      : `云端同步已启用，共 ${records.length} 条记录`);
   renderAll();
 }
 
@@ -744,7 +768,7 @@ function updateLiveTotal() {
     },
   };
   const total = summarizeRecord(draft);
-  els.liveTotal.textContent = `本次合计：尿块 ${total.urineCount} 个，估算体积 ${formatNumber(total.totalVolume)} cm³；排除明显 Lucky 后 ${formatNumber(total.moneyWatchVolume)} cm³；屎块 ${total.stoolCount} 个。`;
+  els.liveTotal.textContent = totalText(total);
 }
 
 function renderAll() {
@@ -759,10 +783,10 @@ function renderToday() {
   const todayRecords = sortRecords(records.filter((record) => record.date === today));
   const todayTotal = summarizeRecords(todayRecords);
   els.todaySummary.innerHTML = [
-    metric("检查次数", `${todayRecords.length} 次`),
-    metric("尿块", `${todayTotal.urineCount} 个`),
+    metric("检查次数", currentLanguage === "zh" ? `${todayRecords.length} 次` : countText(todayRecords.length, "check")),
+    metric("尿块", countText(todayTotal.urineCount, "urine")),
     metric("估算体积", `${formatNumber(todayTotal.totalVolume)} cm³`),
-    metric("屎块", `${todayTotal.stoolCount} 个`),
+    metric("屎块", countText(todayTotal.stoolCount, "stool")),
   ].join("");
   els.todayAlerts.innerHTML = renderAlerts(today, "today");
   els.todayRecords.innerHTML = todayRecords.length ? todayRecords.map(renderRecordCard).join("") : emptyState("今天还没有记录");
