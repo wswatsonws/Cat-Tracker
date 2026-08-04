@@ -3,6 +3,7 @@ const SUPABASE_URL = "https://kciebvyryqblfmbamasp.supabase.co";
 const SUPABASE_KEY = "sb_publishable_XUQPY1_R98Ce11GTeFlaMA_3Ir5pXf3";
 const LANGUAGE_KEY = "money-cat-tracker-language";
 let currentLanguage = "zh";
+let lastStatusMessage = "";
 
 const TEXT_TRANSLATIONS = {
   "猫砂记录": { en: "Litter Tracker", fr: "Suivi de litière" },
@@ -39,7 +40,7 @@ const TEXT_TRANSLATIONS = {
   "历史记录": { en: "History", fr: "Historique" },
   "趋势分析": { en: "Trends", fr: "Tendances" },
   "按日": { en: "Daily", fr: "Par jour" },
-  "按月": { en: "Monthly", fr: "Monthly" },
+  "按月": { en: "Monthly", fr: "Par mois" },
   "全部尿块": { en: "All urine clumps", fr: "Tous les amas d’urine" },
   "排除明显 Lucky": { en: "Exclude obvious Lucky clumps", fr: "Exclure les amas clairement attribués à Lucky" },
   "3 天移动平均": { en: "3-day moving average", fr: "Moyenne mobile sur 3 jours" },
@@ -83,7 +84,7 @@ const TEXT_TRANSLATIONS = {
   "暂无趋势数据": { en: "No trend data yet", fr: "Pas encore de données de tendance" },
   "云端同步已启用，共": { en: "Cloud sync is on, ", fr: "Synchronisation cloud activée, " },
   "软便 / 长条 / 大条": { en: "Soft / long / large", fr: "Molle / longue / grosse" },
-  "补水、呕吐、亲眼看到 Money、疑似 Lucky、频繁进盆等": { en: "Extra water, vomiting, saw Money, possibly Lucky, frequent tray visits, etc.", fr: "Eau ajoutée, vomissement, Money vu, probablement Lucky, passages fréquents au bac, etc." },
+  "补水、呕吐、亲眼看到 Money、疑似 Lucky、频繁进盆等": { en: "Extra water, vomiting, Money seen directly, possibly Lucky, frequent tray visits, etc.", fr: "Eau ajoutée, vomissements, Money vu directement, Lucky suspecté, passages fréquents au bac, etc." },
   "粘贴对方页面里显示的家庭 ID": { en: "Paste the family ID shown on the other person’s page", fr: "Collez l’identifiant familial affiché sur l’autre téléphone" },
   "粘贴之前导出的 JSON": { en: "Paste a previously exported JSON file", fr: "Collez un fichier JSON exporté précédemment" },
 };
@@ -103,6 +104,44 @@ function ownerLabel(owner) {
 
 function translateText(value) {
   return currentLanguage === "zh" ? value : TEXT_TRANSLATIONS[value]?.[currentLanguage] || value;
+}
+
+function localizeRuntime(message) {
+  if (currentLanguage === "zh" || !message) return message;
+  const exact = {
+    "正在检查登录状态...": { en: "Checking sign-in status...", fr: "Vérification de la connexion..." },
+    "正在注册...": { en: "Creating account...", fr: "Création du compte..." },
+    "正在登录...": { en: "Signing in...", fr: "Connexion..." },
+    "正在发送重置邮件...": { en: "Sending reset email...", fr: "Envoi de l’e-mail de réinitialisation..." },
+    "正在修改密码...": { en: "Changing password...", fr: "Modification du mot de passe..." },
+    "正在创建家庭空间...": { en: "Creating family space...", fr: "Création de l’espace familial..." },
+    "正在加入家庭空间...": { en: "Joining family space...", fr: "Connexion à l’espace familial..." },
+    "正在保存...": { en: "Saving...", fr: "Enregistrement..." },
+    "正在从云端读取...": { en: "Loading from the cloud...", fr: "Chargement depuis le cloud..." },
+    "正在删除...": { en: "Deleting...", fr: "Suppression..." },
+    "已删除": { en: "Deleted", fr: "Supprimé" },
+    "已保存到云端": { en: "Saved to the cloud", fr: "Enregistré dans le cloud" },
+    "记录已保存": { en: "Record saved", fr: "Donnée enregistrée" },
+    "正在保存，请稍候…": { en: "Saving, please wait…", fr: "Enregistrement, veuillez patienter…" },
+    "正在保存…": { en: "Saving…", fr: "Enregistrement…" },
+    "保存记录": { en: "Save record", fr: "Enregistrer" },
+    "网络连接不稳定，请检查网络后再次点击保存。": { en: "The network is unstable. Check your connection and try saving again.", fr: "La connexion est instable. Vérifiez le réseau puis réessayez." },
+    "保存等待超过 20 秒，请检查网络后再次点击保存。": { en: "Saving took more than 20 seconds. Check your connection and try again.", fr: "L’enregistrement a dépassé 20 secondes. Vérifiez le réseau puis réessayez." },
+    "新密码至少 6 位。": { en: "The new password must be at least 6 characters.", fr: "Le nouveau mot de passe doit contenir au moins 6 caractères." },
+    "家庭名称不能为空。": { en: "The family name cannot be empty.", fr: "Le nom de la famille ne peut pas être vide." },
+    "家庭名称已保存。": { en: "Family name saved.", fr: "Nom de la famille enregistré." },
+    "家庭 ID 已复制": { en: "Family ID copied", fr: "Identifiant familial copié" },
+  };
+  if (exact[message]) return exact[message][currentLanguage];
+  const prefixes = {
+    "注册失败：": { en: "Sign-up failed: ", fr: "Échec de l’inscription : " },
+    "登录失败：": { en: "Sign-in failed: ", fr: "Échec de la connexion : " },
+    "发送失败：": { en: "Sending failed: ", fr: "Échec de l’envoi : " },
+    "修改失败：": { en: "Password change failed: ", fr: "Échec de la modification : " },
+    "保存失败：": { en: "Save failed: ", fr: "Échec de l’enregistrement : " },
+  };
+  const prefix = Object.keys(prefixes).find((key) => message.startsWith(key));
+  return prefix ? `${prefixes[prefix][currentLanguage]}${message.slice(prefix.length)}` : message;
 }
 
 function countText(value, type) {
@@ -262,6 +301,7 @@ function bindEvents() {
     currentLanguage = els.languageSelect.value;
     localStorage.setItem(LANGUAGE_KEY, currentLanguage);
     applyLanguage();
+    setStatus(lastStatusMessage);
     renderAll();
   });
 
@@ -677,12 +717,12 @@ async function saveForm(event) {
 function setSavingState(saving) {
   isSaving = saving;
   els.saveButton.disabled = saving;
-  els.saveButton.textContent = saving ? "正在保存…" : "保存记录";
+  els.saveButton.textContent = localizeRuntime(saving ? "正在保存…" : "保存记录");
 }
 
 function showSaveFeedback(message, type, hideAfter = 0) {
   clearTimeout(saveFeedbackTimer);
-  els.saveFeedback.textContent = message;
+  els.saveFeedback.textContent = localizeRuntime(message);
   els.saveFeedback.className = `save-feedback ${type}`;
   if (hideAfter) {
     saveFeedbackTimer = setTimeout(() => els.saveFeedback.classList.add("hidden"), hideAfter);
@@ -806,16 +846,33 @@ function renderTrends() {
   const movingWindow = Number(els.trendWindow.value || 3);
   const daily = summarizeDailyEstimates(records, mode, movingWindow);
   const points = range === "month" ? summarizeMonthlyEstimates(daily, movingWindow) : daily;
+  const labels = trendLabels(range, movingWindow);
   els.trendAlerts.innerHTML = renderDailyEstimateAlerts(daily, movingWindow, range);
   els.trendChart.innerHTML = points.length
     ? renderDailyEstimateChart(points.slice(-60), movingWindow, range)
     : emptyState("暂无趋势数据");
   els.trendTable.innerHTML = points.length
     ? [
-      `<div class="trend-table-row"><strong>${range === "month" ? "月份" : "日期"}</strong><strong>${range === "month" ? "月内日均" : "每日估算"}</strong><strong>${movingWindow}${range === "month" ? "个月" : "天"}平均</strong><strong>${range === "month" ? "异常日" : "覆盖"}</strong></div>`,
-      ...points.slice(-20).reverse().map((point) => `<div class="trend-table-row"><span>${point.date}${point.anomaly || point.anomalyCount ? " · 含异常" : ""}${point.lowConfidence ? " · 低置信度" : ""}</span><span>${formatNumber(point.volume)} cm³</span><span>${formatNumber(point.movingAverage)} cm³</span><span>${range === "month" ? `${point.anomalyCount || 0} 天` : `${formatNumber(point.coverageHours)} 小时`}</span></div>`),
+      `<div class="trend-table-row"><strong>${labels.date}</strong><strong>${labels.volume}</strong><strong>${labels.average}</strong><strong>${labels.coverage}</strong></div>`,
+      ...points.slice(-20).reverse().map((point) => `<div class="trend-table-row"><span>${point.date}${point.anomaly || point.anomalyCount ? ` · ${labels.containsAnomaly}` : ""}${point.lowConfidence ? ` · ${labels.lowConfidence}` : ""}</span><span>${formatNumber(point.volume)} cm³</span><span>${formatNumber(point.movingAverage)} cm³</span><span>${range === "month" ? `${point.anomalyCount || 0} ${labels.days}` : `${formatNumber(point.coverageHours)} ${labels.hours}`}</span></div>`),
     ].join("")
     : "";
+}
+
+function trendLabels(range, movingWindow) {
+  if (currentLanguage === "fr") {
+    return range === "month"
+      ? { date: "Mois", volume: "Moyenne quotidienne du mois", average: `Moyenne mobile sur ${movingWindow} mois`, coverage: "Jours atypiques", containsAnomaly: "avec anomalie", lowConfidence: "faible confiance", days: "jour(s)", hours: "h" }
+      : { date: "Date", volume: "Estimation quotidienne", average: `Moyenne mobile sur ${movingWindow} jours`, coverage: "Couverture", containsAnomaly: "anomalie", lowConfidence: "faible confiance", days: "jour(s)", hours: "h" };
+  }
+  if (currentLanguage === "en") {
+    return range === "month"
+      ? { date: "Month", volume: "Monthly daily average", average: `${movingWindow}-month moving average`, coverage: "Anomalous days", containsAnomaly: "with anomaly", lowConfidence: "low confidence", days: "day(s)", hours: "hours" }
+      : { date: "Date", volume: "Daily estimate", average: `${movingWindow}-day moving average`, coverage: "Coverage", containsAnomaly: "anomaly", lowConfidence: "low confidence", days: "day(s)", hours: "hours" };
+  }
+  return range === "month"
+    ? { date: "月份", volume: "月内日均", average: `${movingWindow}个月平均`, coverage: "异常日", containsAnomaly: "含异常", lowConfidence: "低置信度", days: "天", hours: "小时" }
+    : { date: "日期", volume: "每日估算", average: `${movingWindow}天平均`, coverage: "覆盖", containsAnomaly: "含异常", lowConfidence: "低置信度", days: "天", hours: "小时" };
 }
 
 function renderRecordCard(record) {
@@ -870,17 +927,25 @@ function renderAlerts(date, placement) {
   if (previous.length >= 3) {
     const average = previous.reduce((sum, day) => sum + day.volume, 0) / previous.length;
     if (current.volume > 0 && current.volume < average * 0.55) {
-      messages.push(`今天排除明显 Lucky 后的估算体积低于近 ${previous.length} 天平均水平，建议继续留意。`);
+      messages.push(currentLanguage === "fr"
+        ? `Le volume estimé de Money, après exclusion des amas clairement attribués à Lucky, est inférieur à la moyenne des ${previous.length} derniers jours. Surveillez l’évolution.`
+        : currentLanguage === "en"
+          ? `Money’s estimated volume, excluding obvious Lucky clumps, is below the average of the previous ${previous.length} days. Please keep monitoring.`
+          : `今天排除明显 Lucky 后的估算体积低于近 ${previous.length} 天平均水平，建议继续留意。`);
     }
   }
 
   const noteText = records.filter((record) => record.date === date).map((record) => record.note).join(" ");
   if (/尿不出|频繁|血尿|痛苦|惨叫|呕吐|精神差|尿闭/.test(noteText)) {
-    messages.push("备注里出现高风险症状关键词。这个提醒不是诊断；如果 Money 状态不对，建议及时联系兽医。");
+    messages.push(currentLanguage === "fr"
+      ? "Une note contient un mot-clé lié à un symptôme préoccupant. Ce message n’est pas un diagnostic ; si Money semble mal, contactez un vétérinaire."
+      : currentLanguage === "en"
+        ? "A note contains a concerning symptom keyword. This is not a diagnosis; contact a veterinarian if Money seems unwell."
+        : "备注里出现高风险症状关键词。这个提醒不是诊断；如果 Money 状态不对，建议及时联系兽医。");
   }
 
   if (!messages.length && placement === "trend") return "";
-  if (!messages.length) return `<div class="alert">暂无明显偏低趋势。记录有误差，继续观察即可。</div>`;
+  if (!messages.length) return `<div class="alert">${currentLanguage === "fr" ? "Aucune baisse nette détectée. Les mesures sont approximatives ; continuez simplement à observer." : currentLanguage === "en" ? "No clear low trend detected. Measurements are approximate; continue monitoring." : "暂无明显偏低趋势。记录有误差，继续观察即可。"}</div>`;
   return messages.map((message) => `<div class="alert">${message}</div>`).join("");
 }
 
@@ -1044,10 +1109,13 @@ function renderDailyEstimateChart(points, movingWindow, range) {
     .filter((index, position, list) => list.indexOf(index) === position)
     .map((index) => `<text class="chart-axis-label" x="${x(index)}" y="${height - 14}" text-anchor="${index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}">${range === "month" ? points[index].date : shortDate(points[index].date)}</text>`)
     .join("");
-  const unit = range === "month" ? "个月" : "天";
-  const measure = range === "month" ? "月内日均" : "每日估算";
-  const circles = points.map((point, index) => `<circle class="chart-point${point.anomaly || point.anomalyCount ? " chart-point-anomaly" : ""}" cx="${x(index)}" cy="${y(point.volume)}" r="${point.anomaly || point.anomalyCount ? 5 : 3}"><title>${point.date}：${measure} ${formatNumber(point.volume)} cm³${point.anomaly ? "，异常估算" : point.anomalyCount ? `，${point.anomalyCount} 个异常日已排除` : ""}${point.lowConfidence ? "，低置信度" : ""}</title></circle>`).join("");
-  return `<div class="chart-caption">实线是${measure}，虚线是 ${movingWindow} ${unit}移动平均。异常日保留在原始数据中，但不参与平均线和月均值。</div><div class="chart-legend"><span><i class="legend-dot"></i>${measure}</span><span><i class="legend-line"></i>${movingWindow} ${unit}移动平均</span><span><i class="legend-anomaly"></i>异常估算</span></div><svg class="line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="尿量估算和移动平均趋势图">${grid}<polyline class="chart-line" points="${polyline("volume")}" />${circles}<polyline class="chart-line chart-line-average" points="${polyline("movingAverage")}" />${labels}</svg>`;
+  const chartCopy = currentLanguage === "fr"
+    ? (range === "month" ? { unit: "mois", measure: "moyenne quotidienne du mois", average: "moyenne mobile", caption: "La ligne pleine montre la moyenne quotidienne du mois ; la ligne en pointillés montre la moyenne mobile. Les anomalies restent dans les données originales, mais ne sont pas utilisées dans les moyennes.", anomaly: "estimation atypique", excluded: "jour(s) atypique(s) exclu(s)", low: "faible confiance", aria: "Tendance du volume estimé et de la moyenne mobile" } : { unit: "jours", measure: "estimation quotidienne", average: "moyenne mobile", caption: "La ligne pleine montre l’estimation quotidienne ; la ligne en pointillés montre la moyenne mobile. Les anomalies restent dans les données originales, mais ne sont pas utilisées dans les moyennes.", anomaly: "estimation atypique", excluded: "jour(s) atypique(s) exclu(s)", low: "faible confiance", aria: "Tendance du volume estimé et de la moyenne mobile" })
+    : currentLanguage === "en"
+      ? (range === "month" ? { unit: "months", measure: "monthly daily average", average: "moving average", caption: "The solid line shows the monthly daily average; the dashed line shows the moving average. Anomalies remain in the original data but are excluded from averages.", anomaly: "anomalous estimate", excluded: "anomalous day(s) excluded", low: "low confidence", aria: "Estimated volume and moving average trend" } : { unit: "days", measure: "daily estimate", average: "moving average", caption: "The solid line shows the daily estimate; the dashed line shows the moving average. Anomalies remain in the original data but are excluded from averages.", anomaly: "anomalous estimate", excluded: "anomalous day(s) excluded", low: "low confidence", aria: "Estimated volume and moving average trend" })
+      : (range === "month" ? { unit: "个月", measure: "月内日均", average: "移动平均", caption: "实线是月内日均，虚线是移动平均。异常日保留在原始数据中，但不参与平均线和月均值。", anomaly: "异常估算", excluded: "个异常日已排除", low: "低置信度", aria: "尿量估算和移动平均趋势图" } : { unit: "天", measure: "每日估算", average: "移动平均", caption: "实线是每日估算量，虚线是移动平均。异常日保留在原始数据中，但不参与平均线和月均值。", anomaly: "异常估算", excluded: "个异常日已排除", low: "低置信度", aria: "尿量估算和移动平均趋势图" });
+  const circles = points.map((point, index) => `<circle class="chart-point${point.anomaly || point.anomalyCount ? " chart-point-anomaly" : ""}" cx="${x(index)}" cy="${y(point.volume)}" r="${point.anomaly || point.anomalyCount ? 5 : 3}"><title>${point.date}: ${chartCopy.measure} ${formatNumber(point.volume)} cm³${point.anomaly ? `, ${chartCopy.anomaly}` : point.anomalyCount ? `, ${point.anomalyCount} ${chartCopy.excluded}` : ""}${point.lowConfidence ? `, ${chartCopy.low}` : ""}</title></circle>`).join("");
+  return `<div class="chart-caption">${chartCopy.caption}</div><div class="chart-legend"><span><i class="legend-dot"></i>${chartCopy.measure}</span><span><i class="legend-line"></i>${movingWindow} ${chartCopy.unit} ${chartCopy.average}</span><span><i class="legend-anomaly"></i>${chartCopy.anomaly}</span></div><svg class="line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${chartCopy.aria}">${grid}<polyline class="chart-line" points="${polyline("volume")}" />${circles}<polyline class="chart-line chart-line-average" points="${polyline("movingAverage")}" />${labels}</svg>`;
 }
 
 function shortDateTime(date, time) {
@@ -1062,21 +1130,21 @@ function renderDailyEstimateAlerts(points, movingDays, range) {
     .map((point) => `${point.date}（${point.invalidDimensionCount} 个）`)
     .join("、");
   const invalidMessage = invalidDimensions
-    ? `<div class="alert">趋势中已忽略 ${invalidDimensions} 个明显不合理的尿块尺寸（单边超过 30 cm），日期：${invalidDates}。原始记录未删除，请到历史记录检查是否把备注时间误填进尺寸。</div>`
+    ? `<div class="alert">${currentLanguage === "fr" ? `${invalidDimensions} mesure(s) de taille manifestement irréaliste(s) ont été ignorée(s) dans les tendances (un côté dépasse 30 cm), aux dates suivantes : ${invalidDates}. Les données originales n’ont pas été supprimées ; vérifiez l’historique.` : currentLanguage === "en" ? `${invalidDimensions} clearly unrealistic urine dimension(s) were excluded from trends (one side exceeds 30 cm), on: ${invalidDates}. The original records were not deleted; please check History.` : `趋势中已忽略 ${invalidDimensions} 个明显不合理的尿块尺寸（单边超过 30 cm），日期：${invalidDates}。原始记录未删除，请到历史记录检查是否把备注时间误填进尺寸。`}</div>`
     : "";
   const anomalyDates = anomalies
     .map((point) => `${point.date}（${formatNumber(point.volume)} cm³）`)
     .join("、");
   const anomalyMessage = anomalies.length
-    ? `<div class="alert">发现 ${anomalies.length} 个明显偏高的估算日：${anomalyDates}。它们未被删除，但已从移动平均${range === "month" ? "和月均值" : ""}中排除，建议按日期到历史记录核对原始尺寸。</div>`
+    ? `<div class="alert">${currentLanguage === "fr" ? `${anomalies.length} estimation(s) quotidienne(s) nettement élevée(s) : ${anomalyDates}. Elles n’ont pas été supprimées, mais sont exclues de la moyenne mobile et de la moyenne mensuelle. Vérifiez les dimensions dans l’historique.` : currentLanguage === "en" ? `${anomalies.length} unusually high daily estimate(s): ${anomalyDates}. They were not deleted, but are excluded from the moving and monthly averages. Check the dimensions in History.` : `发现 ${anomalies.length} 个明显偏高的估算日：${anomalyDates}。它们未被删除，但已从移动平均${range === "month" ? "和月均值" : ""}中排除，建议按日期到历史记录核对原始尺寸。`}</div>`
     : "";
   if (points.length < 4) return `${invalidMessage}${anomalyMessage}`;
   const latest = points[points.length - 1];
   const previous = points.slice(-8, -1).map((point) => point.movingAverage).filter((volume) => volume > 0);
-  if (previous.length < 3 || latest.lowConfidence) return `${invalidMessage}${anomalyMessage}${latest.lowConfidence ? `<div class="alert">最近一段记录距离上次铲屎超过 48 小时，本日尿量为低置信度估算，建议结合原始记录观察。</div>` : ""}`;
+  if (previous.length < 3 || latest.lowConfidence) return `${invalidMessage}${anomalyMessage}${latest.lowConfidence ? `<div class="alert">${currentLanguage === "fr" ? "La dernière période dépasse 48 heures depuis le dernier nettoyage ; l’estimation du jour est donc moins fiable. Consultez les données originales." : currentLanguage === "en" ? "More than 48 hours passed since the previous cleaning; today’s estimate is lower confidence. Check the original records." : "最近一段记录距离上次铲屎超过 48 小时，本日尿量为低置信度估算，建议结合原始记录观察。"}</div>` : ""}`;
   const average = previous.reduce((sum, volume) => sum + volume, 0) / previous.length;
   return latest.movingAverage > 0 && latest.movingAverage < average * 0.55
-    ? `${invalidMessage}${anomalyMessage}<div class="alert">最近 ${movingDays} 天移动平均低于近期水平，建议继续观察。记录存在目测误差，这不是医学诊断。</div>`
+    ? `${invalidMessage}${anomalyMessage}<div class="alert">${currentLanguage === "fr" ? `La moyenne mobile sur ${movingDays} jours est inférieure au niveau récent. Continuez à observer ; les mesures sont approximatives et ce message n’est pas un diagnostic médical.` : currentLanguage === "en" ? `The ${movingDays}-day moving average is below the recent level. Continue monitoring; measurements are approximate and this is not a medical diagnosis.` : `最近 ${movingDays} 天移动平均低于近期水平，建议继续观察。记录存在目测误差，这不是医学诊断。`}</div>`
     : `${invalidMessage}${anomalyMessage}`;
 }
 
@@ -1248,7 +1316,8 @@ function integerValue(value) {
 }
 
 function formatNumber(value) {
-  return Number(value || 0).toLocaleString("zh-CN", { maximumFractionDigits: 1 });
+  const locale = currentLanguage === "fr" ? "fr-FR" : currentLanguage === "en" ? "en-US" : "zh-CN";
+  return Number(value || 0).toLocaleString(locale, { maximumFractionDigits: 1 });
 }
 
 function toDateValue(date) {
@@ -1341,23 +1410,24 @@ function escapeHtml(value) {
 }
 
 function setStatus(message) {
-  els.syncStatus.textContent = translateText(message);
+  lastStatusMessage = message;
+  els.syncStatus.textContent = localizeRuntime(message);
 }
 
 function setAuthMessage(message) {
-  els.authMessage.textContent = translateText(message);
+  els.authMessage.textContent = localizeRuntime(message);
 }
 
 function setFamilyMessage(message) {
-  els.familyMessage.textContent = translateText(message);
+  els.familyMessage.textContent = localizeRuntime(message);
 }
 
 function setPasswordMessage(message) {
-  els.passwordMessage.textContent = translateText(message);
+  els.passwordMessage.textContent = localizeRuntime(message);
 }
 
 function setFamilyNameMessage(message) {
-  els.familyNameMessage.textContent = translateText(message);
+  els.familyNameMessage.textContent = localizeRuntime(message);
 }
 
 function setAuthBusy(isBusy, message = "") {
